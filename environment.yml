@@ -1,0 +1,28 @@
+name: hexcore
+channels:
+  - pytorch
+  - nvidia
+  - huggingface
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip=23.1.2
+  - cudatoolkit=11.8
+  - pytorch=2.0.1
+  - torchvision
+  - numpy=1.24.3
+  - pip:
+      - transformers>=4.34.0
+      - peft>=0.5.0
+      - bitsandbytes>=0.41.0
+      - accelerate>=0.23.0
+      - flash-attn>=2.3.0
+      - networkx>=3.1
+      - faiss-gpu>=1.7.2
+      - sentence-transformers>=2.2.2
+      - jupyterlab
+      - wandb
+      - pytest
+      - black
+      - isort

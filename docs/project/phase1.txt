@@ -1,0 +1,83 @@
+# Development Environment Setup Checklist
+
+Here's a detailed checklist for setting up our development environment for the MTG AI Reasoning Assistant project:
+
+## Repository Setup & Structure
+- [x] Initialize Git repository (already completed)
+- [X] Create README.md with project overview and setup instructions
+- [X] Add .gitignore file for Python, PyTorch, and other ML frameworks
+- [X] Create initial directory structure:
+  - [X] `/src` - core codebase
+  - [X] `/data` - data processing scripts and storage
+  - [X] `/models` - model weights and adapters
+  - [X] `/notebooks` - experimental Jupyter notebooks
+  - [X] `/tests` - unit and integration tests
+  - [X] `/docs` - documentation files
+- [X] Add LICENSE file
+
+## Environment Configuration
+- [x] Create conda environment (already completed)
+- [-] Create requirements.txt with core dependencies:
+  - [ ] torch>=2.0.0
+  - [ ] transformers>=4.34.0
+  - [ ] peft>=0.5.0
+  - [ ] bitsandbytes>=0.41.0
+  - [ ] accelerate>=0.23.0
+  - [ ] flash-attn>=2.3.0
+  - [ ] networkx>=3.1
+  - [ ] faiss-gpu>=1.7.2
+  - [ ] sentence-transformers>=2.2.2
+- [X] Create environment.yml as alternate to requirements.txt
+- [-] Add setup script for easy environment configuration
+
+## GPU & Hardware Setup
+- [ ] Create GPU detection and configuration script
+- [ ] Implement memory monitoring utilities
+- [ ] Setup CUDA configuration for optimal performance
+- [ ] Create device mapping utility for tensor parallelism
+- [ ] Add fallbacks for different GPU configurations
+
+## Development Tools
+- [ ] Configure VS Code or other IDE settings (share as .vscode folder)
+- [ ] Setup pre-commit hooks for code formatting (black, isort)
+- [ ] Configure linting with flake8 or pylint
+- [ ] Add type checking with mypy
+- [ ] Setup Jupyter notebook configuration (if using notebooks)
+
+## CI/CD Foundation
+- [ ] Create basic GitHub Actions workflow:
+  - [ ] Code linting checks
+  - [ ] Unit test execution 
+  - [ ] Documentation build
+- [ ] Add testing framework (pytest)
+- [ ] Create initial test suite structure
+- [ ] Add code coverage reporting
+
+## Documentation Framework
+- [ ] Create template for ADRs (Architecture Decision Records)
+- [ ] Setup documentation system (MkDocs or Sphinx)
+- [ ] Add docstring convention guidelines
+- [ ] Create first API documentation template
+
+## Project Management
+- [ ] Setup project board (GitHub Projects)
+- [ ] Create initial milestone and sprint structure
+- [ ] Add issue templates for bugs, features, and documentation
+
+## Security
+- [ ] Add proper environment variable handling for API keys
+- [ ] Create credential management system for external services
+- [ ] Set up secure storage for model weights and data
+
+## Core Scripts
+- [ ] Create main entry point script 
+- [ ] Implement configuration loading utility
+- [ ] Add logging framework with configurable levels
+- [ ] Create simple model loading script as proof of concept
+
+## Containerization
+- [ ] Create basic Dockerfile for development
+- [ ] Add docker-compose.yml for multi-container setup
+- [ ] Include GPU passthrough configuration
+
+This checklist covers all the essential elements for establishing a robust development environment for our MTG AI project. Would you like me to prioritize or expand on any specific sections?
