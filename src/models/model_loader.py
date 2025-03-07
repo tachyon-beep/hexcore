@@ -40,32 +40,29 @@ def load_quantized_model(
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_id)
 
-    # Configure quantization parameters
-    quantization_config = None
-    load_in_4bit = False
-    load_in_8bit = False
+    # Configure loading parameters based on quantization type
+    model_kwargs = {}
 
     if quantization_type == "4bit":
-        load_in_4bit = True
-        # Create a BitsAndBytesConfig object here
-        quantization_config = BitsAndBytesConfig(
+        # For 4-bit quantization, enforce auto device mapping
+        model_kwargs["device_map"] = "auto"  # Override any custom device map
+        model_kwargs["quantization_config"] = BitsAndBytesConfig(
             load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",  # Normal float 4-bit
+            bnb_4bit_quant_type="nf4",
             bnb_4bit_compute_dtype=compute_dtype,
-            bnb_4bit_use_double_quant=True,  # Double quantization for further compression
+            bnb_4bit_use_double_quant=True,
         )
     elif quantization_type == "8bit":
-        load_in_8bit = True
+        # For 8-bit quantization, enforce auto device mapping
+        model_kwargs["device_map"] = "auto"  # Override any custom device map
+        model_kwargs["quantization_config"] = BitsAndBytesConfig(load_in_8bit=True)
+    else:
+        # For no quantization, use provided device map and dtype
+        model_kwargs["device_map"] = device_map
+        model_kwargs["torch_dtype"] = compute_dtype
 
-    # Load model with quantization
-    model = AutoModelForCausalLM.from_pretrained(
-        model_id,
-        device_map=device_map,
-        load_in_4bit=load_in_4bit,
-        load_in_8bit=load_in_8bit,
-        quantization_config=quantization_config,
-        torch_dtype=compute_dtype,
-    )
+    # Load model with appropriate parameters
+    model = AutoModelForCausalLM.from_pretrained(model_id, **model_kwargs)
 
     logger.info("Model loaded successfully")
 
