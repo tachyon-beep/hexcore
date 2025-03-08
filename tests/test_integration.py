@@ -1,12 +1,16 @@
 # tests/test_integration.py
-import os
-import sys
+import pytest
 import json
-import logging
-import torch
+import sys
 from pathlib import Path
+from typing import List, Dict
+from transformers import (
+    PreTrainedModel,
+    PreTrainedTokenizer,
+    PreTrainedTokenizerFast,
+)
 
-# Add the src directory to the path
+# Add src directory to Python path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from src.models.model_loader import load_quantized_model
@@ -15,79 +19,112 @@ from src.models.transaction_classifier import TransactionClassifier
 from src.data.mtg_data_loader import MTGDataLoader
 from src.inference.pipeline import MTGInferencePipeline
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
 
-logger = logging.getLogger(__name__)
+@pytest.mark.integration
+def test_integration_pipeline():
+    """End-to-end integration test of the MTG assistance pipeline."""
 
+    # Load model and tokenizer with type checking
+    model, tokenizer = load_quantized_model()
+    assert isinstance(
+        model, PreTrainedModel
+    ), "Loaded model is not a PreTrainedModel instance"
+    assert isinstance(
+        tokenizer, (PreTrainedTokenizer, PreTrainedTokenizerFast)
+    ), "Tokenizer is not a valid PreTrainedTokenizer instance"
 
-def test_integration():
-    """Test the integration of all components."""
-    try:
-        logger.info("Starting integration test")
+    # Load and validate MTG data
+    data_loader = MTGDataLoader()
+    documents = data_loader.load_data()
+    assert len(documents) > 0, "No documents loaded from data source"
 
-        # Step 1: Load model
-        logger.info("Loading model...")
-        model, tokenizer = load_quantized_model()
+    # Prepare documents for retriever with required fields
+    documents_dicts: List[Dict[str, str]] = []
+    for idx, doc in enumerate(documents, start=1):
+        # Validate document structure
+        assert "text" in doc, f"Document {idx} missing 'text' field"
+        assert "metadata" in doc, f"Document {idx} missing 'metadata' field"
 
-        # Step 2: Load data
-        logger.info("Loading MTG data...")
-        data_loader = MTGDataLoader()
-        documents = data_loader.load_or_download_data()
+        # Construct document with required fields for retriever
+        processed_doc = {
+            "text": doc["text"],
+            "metadata": json.dumps(doc["metadata"]),
+            "type": doc.get("type", "rules"),  # Default document type
+            "id": str(
+                doc.get("id", hash(doc["text"]))
+            ),  # Generate ID from text hash if missing
+        }
+        documents_dicts.append(processed_doc)
 
-        # Step 3: Initialize retriever
-        logger.info("Initializing retriever...")
-        retriever = MTGRetriever()
-        retriever.index_documents(documents)
+    # Initialize and populate knowledge retriever
+    retriever = MTGRetriever()
+    retriever.index_documents(documents_dicts)
+    assert len(retriever.get_index()) == len(
+        documents_dicts
+    ), "Retriever index count doesn't match document count"
 
-        # Step 4: Initialize classifier
-        logger.info("Initializing classifier...")
-        classifier = TransactionClassifier()
+    # Initialize transaction classifier
+    classifier = TransactionClassifier()
+    assert classifier is not None, "Failed to initialize TransactionClassifier"
 
-        # Step 5: Initialize pipeline
-        logger.info("Creating inference pipeline...")
-        pipeline = MTGInferencePipeline(
-            model=model,
-            tokenizer=tokenizer,
-            classifier=classifier,
-            retriever=retriever,
-            data_loader=data_loader,
-        )
+    # Construct inference pipeline
+    pipeline = MTGInferencePipeline(
+        model=model,
+        tokenizer=tokenizer,
+        classifier=classifier,
+        retriever=retriever,
+        data_loader=data_loader,
+    )
+    assert pipeline is not None, "Failed to initialize MTGInferencePipeline"
 
-        # Step 6: Test different query types
-        test_queries = [
-            "What happens when Lightning Bolt targets a creature with protection from red?",
-            "Can you explain how the stack works in Magic?",
-            "I'm new to Magic. Can you teach me the basics of deckbuilding?",
-            "I have a hand with Island, Mountain, Lightning Bolt, and Counterspell. What's my best play against an aggro deck?",
-            "I lost a game where my opponent used a board wipe. What could I have done differently?",
-        ]
+    # Define test queries with varied complexity
+    test_queries = [
+        ("What protection from red means for Lightning Bolt targets?", "rules"),
+        ("How to build a commander deck for beginners?", "deckbuilding"),
+        (
+            "Respond to opponent's T1 Thoughtseize with this hand: Forest, Llanowar Elves, ...",
+            "gameplay",
+        ),
+    ]
 
-        logger.info("Testing queries...")
-        for query in test_queries:
-            logger.info(f"Query: {query}")
-            result = pipeline.generate_response(query)
-            logger.info(
-                f"Expert: {result['expert_type']} (Confidence: {result['confidence']:.2f})"
-            )
-            logger.info(f"Response time: {result['metrics']['total_time']:.2f}s")
-            logger.info(f"Response: {result['response'][:200]}...")
-            logger.info("---")
+    # Validate pipeline responses
+    for query, expected_type in test_queries:
+        result = pipeline.generate_response(query)
 
-        logger.info("Integration test completed successfully!")
-        return True
+        # Validate response structure
+        assert isinstance(result, dict), "Response should be a dictionary"
 
-    except Exception as e:
-        logger.error(f"Integration test failed: {e}")
-        import traceback
+        # Validate expert type classification
+        assert "expert_type" in result, "Missing expert_type in response"
+        assert isinstance(result["expert_type"], str), "Expert type should be a string"
+        assert result["expert_type"] in [
+            "REASON",
+            "EXPLAIN",
+            "TEACH",
+            "PREDICT",
+            "RETROSPECT",
+        ], f"Unexpected expert type: {result['expert_type']}"
 
-        logger.error(traceback.format_exc())
-        return False
+        # Validate confidence score
+        assert "confidence" in result, "Missing confidence score"
+        assert isinstance(result["confidence"], float), "Confidence should be a float"
+        assert 0 <= result["confidence"] <= 1, "Confidence score out of valid range"
 
+        # Validate response content
+        assert "response" in result, "Missing response text"
+        assert isinstance(result["response"], str), "Response should be a string"
+        assert len(result["response"]) >= 50, "Response seems too short"
 
-if __name__ == "__main__":
-    test_integration()
+        # Validate performance metrics
+        assert "metrics" in result, "Missing performance metrics"
+        assert isinstance(result["metrics"], dict), "Metrics should be a dictionary"
+        assert "total_time" in result["metrics"], "Missing total_time metric"
+        assert isinstance(
+            result["metrics"]["total_time"], float
+        ), "Time metric should be a float"
+        assert result["metrics"]["total_time"] > 0, "Invalid processing time"
+
+    # Validate pipeline component integration
+    assert pipeline.model is model, "Model instance mismatch in pipeline"
+    assert pipeline.tokenizer is tokenizer, "Tokenizer instance mismatch in pipeline"
+    assert pipeline.retriever is retriever, "Retriever instance mismatch in pipeline"

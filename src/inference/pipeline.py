@@ -1,5 +1,6 @@
 # src/inference/pipeline.py
 import torch
+from torch.nn import Module
 from transformers import PreTrainedModel, PreTrainedTokenizer
 from typing import Dict, List, Tuple, Optional, Any, Union
 import logging

@@ -1,4 +1,4 @@
-# src/knowledge/retriever.py
+# src/knowledge/retreiver.py
 from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
@@ -29,6 +29,19 @@ class MTGRetriever:
 
         logger.info(f"Initialized MTG Retriever with {embedding_model}")
 
+    def get_index(self) -> List[str]:
+        """
+        Get the indexed documents.
+
+        Returns:
+            List of document IDs in the index
+        """
+        if not self.document_ids:
+            logger.warning("No documents have been indexed")
+            return []
+
+        return self.document_ids
+
     def index_documents(self, documents: List[Dict[str, str]]):
         """
         Index documents for retrieval.
@@ -54,20 +67,15 @@ class MTGRetriever:
         # Convert to numpy array with the right dtype
         embeddings_np = np.array(embeddings, dtype=np.float32)
 
-        # Create a copy before normalizing (since normalize_L2 modifies in-place)
-        embeddings_norm = embeddings_np.copy()
-
-        # Normalize for cosine similarity - provide the vector array to normalize_L2
-        faiss.normalize_L2(embeddings_norm)
+        # Normalize for cosine similarity
+        faiss.normalize_L2(embeddings_np)
 
         # Create FAISS index
-        vector_dimension = embeddings_norm.shape[1]
+        vector_dimension = embeddings_np.shape[1]
         self.document_index = faiss.IndexFlatIP(vector_dimension)
 
-        # Add the embeddings to the index with both required parameters
-        # n = number of vectors, x = the vector data
-        n_vectors = embeddings_norm.shape[0]
-        self.document_index.add(n_vectors, embeddings_norm)
+        # Add embeddings to index - FAISS 1.9.0 expects only the embedding array
+        self.document_index.add(embeddings_np)  # type: ignore
 
         logger.info(f"Indexed {len(texts)} documents with dimension {vector_dimension}")
 
@@ -99,22 +107,8 @@ class MTGRetriever:
         # Normalize for cosine similarity
         faiss.normalize_L2(query_np)
 
-        # Create arrays to store results
-        n_queries = query_np.shape[0]  # Number of query vectors (usually 1)
-        distances = np.empty((n_queries, top_k), dtype=np.float32)
-        labels = np.empty((n_queries, top_k), dtype=np.int64)
-
-        # Parameters for search
-        search_params = faiss.SearchParameters()
-
-        # Perform the search with all five required parameters
-        self.document_index.search(
-            query_np,  # x: query vectors
-            top_k,  # k: number of results
-            distances,  # distances: output array for distances
-            labels,  # labels: output array for indices
-            search_params,  # search_params: additional parameters
-        )
+        # In FAISS 1.9.0, search directly returns distances and indices
+        distances, labels = self.document_index.search(query_np, top_k)  # type: ignore
 
         # Process results
         results = []
@@ -182,22 +176,8 @@ class MTGRetriever:
         search_k = top_k_per_type * len(unique_types)
         search_k = min(search_k, len(self.documents))
 
-        # Create arrays to store results
-        n_queries = query_np.shape[0]  # Number of query vectors (usually 1)
-        distances = np.empty((n_queries, search_k), dtype=np.float32)
-        labels = np.empty((n_queries, search_k), dtype=np.int64)
-
-        # Parameters for search
-        search_params = faiss.SearchParameters()
-
-        # Perform the search with all five required parameters
-        self.document_index.search(
-            query_np,  # x: query vectors
-            search_k,  # k: number of results
-            distances,  # distances: output array for distances
-            labels,  # labels: output array for indices
-            search_params,  # search_params: additional parameters
-        )
+        # In FAISS 1.9.0, search directly returns distances and indices
+        distances, labels = self.document_index.search(query_np, search_k)  # type: ignore
 
         # Group results by document type
         results_by_type = {doc_type: [] for doc_type in unique_types}

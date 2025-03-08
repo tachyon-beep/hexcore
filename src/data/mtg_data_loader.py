@@ -43,6 +43,7 @@ class DocumentType(TypedDict):
     id: str
     type: str
     text: str
+    metadata: dict
 
 
 class MTGDataLoader:
@@ -462,12 +463,6 @@ class MTGDataLoader:
         return documents
 
     def _add_card_documents(self, documents: List[DocumentType]) -> None:
-        """
-        Add card documents to the document list.
-
-        Args:
-            documents: List to add documents to
-        """
         for card_name, card in self.cards.items():
             doc_text = self._format_card_document_text(card_name, card)
             documents.append(
@@ -475,28 +470,29 @@ class MTGDataLoader:
                     "id": f"card_{card_name.lower().replace(' ', '_')}",
                     "type": "card",
                     "text": doc_text,
+                    "metadata": {  # Add structured metadata
+                        "name": card_name,
+                        "types": card.get("types", []),
+                        "mana_cost": card.get("mana_cost", ""),
+                        "keywords": card.get("keywords", []),
+                    },
                 }
             )
 
     def _add_rule_documents(self, documents: List[DocumentType]) -> None:
-        """
-        Add individual rule documents to the document list.
-
-        Args:
-            documents: List to add documents to
-        """
         for rule_id, rule_text in self.rules.items():
-            # Skip if the rule_text isn't a string (could be a list or dict in some formats)
-            if not isinstance(rule_text, str):
-                continue
-
-            documents.append(
-                {
-                    "id": f"rule_{rule_id}",
-                    "type": "rule",
-                    "text": f"Rule {rule_id}: {rule_text}",
-                }
-            )
+            if isinstance(rule_text, str):
+                documents.append(
+                    {
+                        "id": f"rule_{rule_id}",
+                        "type": "rule",
+                        "text": f"Rule {rule_id}: {rule_text}",
+                        "metadata": {  # Add rule metadata
+                            "rule_id": rule_id,
+                            "category": rule_id.split(".")[0],
+                        },
+                    }
+                )
 
     def _format_card_document_text(self, card_name: str, card: CardType) -> str:
         """
