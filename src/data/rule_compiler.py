@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# src/data/rule_compiler.py
 """
 MTG Rules Text Extractor
 

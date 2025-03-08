@@ -1,311 +1,475 @@
 # src/data/mtg_data_loader.py
 import json
 import os
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, TypedDict, Union
 import logging
-import requests
+from pathlib import Path
 
+# Configure module-level logger
 logger = logging.getLogger(__name__)
+
+
+class RulingType(TypedDict):
+    """Type definition for card rulings."""
+
+    date: str
+    text: str
+
+
+class CardType(TypedDict, total=False):
+    """Type definition for card data with optional fields."""
+
+    name: str
+    mana_cost: str
+    cmc: float
+    type_line: str
+    oracle_text: str
+    colors: List[str]
+    color_identity: List[str]
+    power: str
+    toughness: str
+    loyalty: str
+    keywords: List[str]
+    legalities: Dict[str, str]
+    rulings: List[RulingType]
+    types: List[str]
+    subtypes: List[str]
+    supertypes: List[str]
+
+
+class DocumentType(TypedDict):
+    """Type definition for retrieval documents."""
+
+    id: str
+    type: str
+    text: str
 
 
 class MTGDataLoader:
     """
-    Load and manage MTG card and rules data.
+    Load and manage Magic: The Gathering card and rules data from JSON files.
     """
 
-    def __init__(self, data_dir: str = "data"):
-        """Initialize the MTG data loader."""
+    def __init__(self, data_dir: str = "data") -> None:
+        """
+        Initialize the MTG data loader.
+
+        Args:
+            data_dir: Directory path to store and load data files
+        """
         self.data_dir = data_dir
-        self.sets_file = os.path.join(data_dir, "AllSets.json")  # For loading from sets
         self.cards_file = os.path.join(data_dir, "cards.json")
-        self.rules_file = os.path.join(data_dir, "comprehensive_rules.json")
+        self.rules_file = os.path.join(data_dir, "rules.json")
+        self.glossary_file = os.path.join(data_dir, "glossary.json")
+
+        # Create data directory if it doesn't exist
         os.makedirs(data_dir, exist_ok=True)
-        self.cards = {}
-        self.rules = {}
-        self.card_names = set()  # Keep track of unique card names
 
-    def load_or_download_data(self, force_download: bool = False):
-        """Load or download all necessary data."""
-        # Check if we should load from sets file instead of Scryfall
-        if os.path.exists(self.sets_file):
-            self.load_cards_from_sets(force_download)
-        else:
-            self.load_cards_from_scryfall(force_download)
+        # Initialize data containers
+        self.cards: Dict[str, CardType] = {}
+        self.rules: Dict[str, Union[str, List, Dict]] = (
+            {}
+        )  # Updated to handle different formats
+        self.rules_hierarchy: List[Dict[str, Any]] = []
 
-        self.load_comprehensive_rules(force_download)
+    def load_data(self) -> List[DocumentType]:
+        """
+        Load card data and rules from local JSON files.
+
+        Returns:
+            List of documents prepared for retrieval system
+        """
+        # Load cards
+        self.load_cards()
+
+        # Load rules
+        self.load_rules()
 
         # Create documents for retrieval
         documents = self._create_documents_for_retrieval()
         return documents
 
-    def load_cards_from_sets(self, force_process: bool = False) -> int:
+    def _should_update_card(
+        self, existing_card: CardType, new_card_data: Dict[str, Any]
+    ) -> bool:
         """
-        Load card data from sets JSON file and process it.
+        Determine if existing card should be updated with new data.
 
         Args:
-            force_process: Whether to force reprocessing even if cache exists
+            existing_card: Current card data
+            new_card_data: New card data to consider
 
         Returns:
-            Number of unique cards loaded
+            True if should update, False otherwise
         """
-        # Check if processed cards cache exists
-        if os.path.exists(self.cards_file) and not force_process:
-            logger.info(f"Loading processed cards from cache: {self.cards_file}")
-            with open(self.cards_file, "r", encoding="utf-8") as f:
-                self.cards = json.load(f)
-                self.card_names = set(self.cards.keys())
-            logger.info(f"Loaded {len(self.cards)} processed cards from cache")
-            return len(self.cards)
+        # Update if new card has text and existing doesn't
+        if not existing_card.get("oracle_text") and not existing_card.get("text"):
+            if new_card_data.get("oracle_text") or new_card_data.get("text"):
+                return True
 
-        # Check if raw sets file exists
-        if not os.path.exists(self.sets_file):
-            logger.error(f"Sets file not found: {self.sets_file}")
-            return 0
+        # Update if new card has rulings and existing doesn't
+        if not existing_card.get("rulings") and "rulings" in new_card_data:
+            return True
 
-        logger.info(f"Loading cards from sets file: {self.sets_file}")
+        # Update if new card has more complete type information
+        if not existing_card.get("type_line") and not existing_card.get("type"):
+            if new_card_data.get("type_line") or new_card_data.get("type"):
+                return True
 
-        # Load all sets from JSON file
-        with open(self.sets_file, "r", encoding="utf-8") as f:
-            sets_data = json.load(f)
+        # Update if new card has mana cost and existing doesn't
+        if not existing_card.get("mana_cost") and new_card_data.get("mana_cost"):
+            return True
 
-        # Process all sets and extract cards
+        return False
+
+    def _load_cards_from_sets_data(self, sets_data: Dict[str, Any]) -> int:
+        """
+        Load cards from a data structure organized by sets.
+
+        Args:
+            sets_data: Dictionary of set code -> set data
+
+        Returns:
+            Number of cards loaded
+        """
         self.cards = {}
-        set_codes = set()
+        total_cards = 0
         card_count = 0
 
         for set_code, set_data in sets_data.items():
-            set_codes.add(set_code)
+            if isinstance(set_data, dict) and "cards" in set_data:
+                cards_in_set = set_data["cards"]
+                total_cards += len(cards_in_set)
 
-            # Process each card in the set
-            for card in set_data.get("cards", []):
-                # Skip non-English cards and special layouts if needed
-                if card.get("language", "English") != "English":
-                    continue
+                for card_data in cards_in_set:
+                    # Skip non-English cards
+                    if card_data.get("language", "English") != "English":
+                        continue
 
-                # Skip certain card layouts if needed
-                skip_layouts = ["token", "scheme", "plane", "phenomenon", "vanguard"]
-                if card.get("layout") in skip_layouts:
-                    continue
+                    # Get card name
+                    card_name = card_data.get("name")
+                    if not card_name:
+                        continue
 
-                # Process this card
-                card_name = card["name"]
-                self.card_names.add(card_name)
+                    # Process card
+                    if card_name not in self.cards:
+                        self.cards[card_name] = self._process_card_data(card_data)
+                        card_count += 1
+                    elif self._should_update_card(self.cards[card_name], card_data):
+                        # Replace with better version
+                        self.cards[card_name] = self._process_card_data(card_data)
 
-                # We may have multiple printings of the same card
-                # Choose the most recent one or the one with the most information
-                if card_name in self.cards:
-                    # Check if this version has more information and use it if so
-                    existing_version = self.cards[card_name]
-                    if (not existing_version.get("text") and card.get("text")) or (
-                        not existing_version.get("rulings") and card.get("rulings")
-                    ):
-                        self.cards[card_name] = self._process_card(card, set_data)
-                else:
-                    # New card, add it
-                    self.cards[card_name] = self._process_card(card, set_data)
-                    card_count += 1
-
-        logger.info(f"Processed {card_count} unique cards from {len(set_codes)} sets")
-
-        # Save processed cards to cache
-        with open(self.cards_file, "w", encoding="utf-8") as f:
-            json.dump(self.cards, f, indent=2)
-        logger.info(f"Saved processed cards to: {self.cards_file}")
-
+        logger.info(
+            f"Found {total_cards} total cards across all sets, loaded {card_count} unique cards"
+        )
         return card_count
 
-    def _process_card(
-        self, card: Dict[str, Any], set_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def load_cards(self) -> int:
         """
-        Process a single card to extract relevant information.
-
-        Args:
-            card: Raw card data from the JSON
-            set_data: Set data containing this card
+        Load card data from a local JSON file.
 
         Returns:
-            Processed card with relevant fields
+            Number of cards loaded
         """
-        processed_card = {
-            "name": card["name"],
-            "mana_cost": card.get("manaCost", ""),
-            "cmc": card.get("manaValue", 0),
-            "type_line": card.get("type", ""),
-            "oracle_text": card.get("text", ""),
-            "colors": card.get("colors", []),
-            "color_identity": card.get("colorIdentity", []),
-            "power": card.get("power", ""),
-            "toughness": card.get("toughness", ""),
-            "loyalty": card.get("loyalty", ""),
-            "keywords": card.get("keywords", []),
-            "legalities": card.get("legalities", {}),
-            "layout": card.get("layout", "normal"),
-            "rarity": card.get("rarity", ""),
-            "set": card.get("setCode", set_data.get("code", "")),
-            "set_name": set_data.get("name", ""),
-            "subtypes": card.get("subtypes", []),
-            "supertypes": card.get("supertypes", []),
-            "types": card.get("types", []),
-        }
+        if not os.path.exists(self.cards_file):
+            logger.warning(f"Cards file not found: {self.cards_file}")
+            return 0
 
-        # Process rulings if available (handling the specific Rulings type structure)
-        if "rulings" in card and card["rulings"]:
-            processed_rulings = []
-            for ruling in card["rulings"]:
-                # Ensure ruling has the expected structure
-                if isinstance(ruling, dict) and "date" in ruling and "text" in ruling:
-                    processed_rulings.append(
-                        {"date": ruling["date"], "text": ruling["text"]}
-                    )
-
-            if processed_rulings:
-                processed_card["rulings"] = processed_rulings
-
-        # Handle special layouts
-        if card.get("faceName"):
-            processed_card["face_name"] = card["faceName"]
-
-        if card.get("otherFaceIds"):
-            processed_card["other_face_ids"] = card["otherFaceIds"]
-
-        return processed_card
-
-    def load_cards_from_scryfall(self, force_download: bool = False):
-        """Load card data from Scryfall API or local cache."""
-        if os.path.exists(self.cards_file) and not force_download:
-            logger.info(f"Loading cards from cache: {self.cards_file}")
+        logger.info(f"Loading cards from: {self.cards_file}")
+        try:
             with open(self.cards_file, "r", encoding="utf-8") as f:
-                self.cards = json.load(f)
-            logger.info(f"Loaded {len(self.cards)} cards from cache")
-            return
+                cards_data = json.load(f)
 
-        logger.info("Downloading cards from Scryfall API")
-        self.cards = {}
+                # Reset cards dictionary
+                self.cards = {}
 
-        # Scryfall API endpoint for bulk data
-        bulk_data_url = "https://api.scryfall.com/bulk-data"
-        response = requests.get(bulk_data_url)
-        bulk_data = response.json()
+                # Check for meta/data structure
+                if not isinstance(cards_data, dict):
+                    logger.error(
+                        f"Expected dictionary at top level, got {type(cards_data)}"
+                    )
+                    return 0
 
-        # Find the Oracle Cards download URL
-        oracle_cards_url = None
-        for item in bulk_data["data"]:
-            if item["type"] == "oracle_cards":
-                oracle_cards_url = item["download_uri"]
-                break
+                if "data" not in cards_data:
+                    logger.error("No 'data' field found in cards file")
+                    return 0
 
-        if not oracle_cards_url:
-            raise ValueError("Could not find Oracle Cards download URL")
+                # Get the data section which should contain sets
+                sets_data = cards_data["data"]
 
-        # Download Oracle Cards
-        logger.info(f"Downloading Oracle Cards from {oracle_cards_url}")
-        response = requests.get(oracle_cards_url)
-        all_cards = response.json()
+                if not isinstance(sets_data, dict):
+                    logger.error(
+                        f"Expected dictionary in 'data' section, got {type(sets_data)}"
+                    )
+                    return 0
 
-        # Process cards
-        for card in all_cards:
-            # Skip non-paper cards and tokens
-            if "paper" not in card.get("games", []) or card.get("layout") == "token":
-                continue
+                # Count for logging
+                total_cards_processed = 0
+                unique_cards_found = 0
 
-            # Store card by name with key fields
-            card_name = card["name"]
-            self.cards[card_name] = {
-                "name": card_name,
-                "mana_cost": card.get("mana_cost", ""),
-                "cmc": card.get("cmc", 0),
-                "type_line": card.get("type_line", ""),
-                "oracle_text": card.get("oracle_text", ""),
-                "colors": card.get("colors", []),
-                "color_identity": card.get("color_identity", []),
-                "power": card.get("power", ""),
-                "toughness": card.get("toughness", ""),
-                "loyalty": card.get("loyalty", ""),
-                "legalities": card.get("legalities", {}),
-                "set": card.get("set", ""),
-                "image_uris": card.get("image_uris", {}),
-            }
+                # Iterate through each set
+                for set_code, set_data in sets_data.items():
+                    # Skip meta field if it exists at this level
+                    if set_code == "meta":
+                        continue
 
-            # Process rulings if available
-            if "rulings_uri" in card:
-                rulings_url = card["rulings_uri"]
-                rulings_response = requests.get(rulings_url)
-                if rulings_response.status_code == 200:
-                    rulings_data = rulings_response.json()
-                    if "data" in rulings_data and rulings_data["data"]:
-                        self.cards[card_name]["rulings"] = [
-                            {"date": ruling["published_at"], "text": ruling["comment"]}
-                            for ruling in rulings_data["data"]
-                        ]
+                    # Check if this set has cards
+                    if not isinstance(set_data, dict) or "cards" not in set_data:
+                        logger.debug(f"Set {set_code} has no cards field")
+                        continue
 
-        logger.info(f"Downloaded {len(self.cards)} cards")
+                    # Get the cards array for this set
+                    cards_in_set = set_data["cards"]
 
-        # Save to cache
-        with open(self.cards_file, "w", encoding="utf-8") as f:
-            json.dump(self.cards, f)
-        logger.info(f"Saved cards to cache: {self.cards_file}")
+                    if not isinstance(cards_in_set, list):
+                        logger.warning(
+                            f"Expected list in 'cards' field of set {set_code}, got {type(cards_in_set)}"
+                        )
+                        continue
 
-    def load_comprehensive_rules(self, force_download: bool = False):
-        """Load comprehensive rules from web or local cache."""
-        if os.path.exists(self.rules_file) and not force_download:
-            logger.info(f"Loading rules from cache: {self.rules_file}")
+                    total_cards_processed += len(cards_in_set)
+
+                    # Process each card in the set
+                    for card_data in cards_in_set:
+                        if not isinstance(card_data, dict):
+                            continue
+
+                        # Skip non-English cards
+                        if card_data.get("language", "English") != "English":
+                            continue
+
+                        # Get card name
+                        card_name = card_data.get("name")
+                        if not card_name:
+                            continue
+
+                        # Process card
+                        if card_name not in self.cards:
+                            self.cards[card_name] = self._process_card_data(card_data)
+                            unique_cards_found += 1
+                        elif self._should_update_card(self.cards[card_name], card_data):
+                            # Replace with better version
+                            self.cards[card_name] = self._process_card_data(card_data)
+
+                logger.info(
+                    f"Processed {total_cards_processed} cards from all sets, loaded {unique_cards_found} unique cards"
+                )
+                return unique_cards_found
+
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse cards file: {self.cards_file}")
+            return 0
+        except Exception as e:
+            logger.error(f"Error loading cards file: {str(e)}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            return 0
+
+    def _process_card_data(self, card_data: Dict[str, Any]) -> CardType:
+        """
+        Convert raw card data to standardized format.
+
+        Args:
+            card_data: Raw card data from JSON
+
+        Returns:
+            Processed card data
+        """
+        # Initialize with basic properties, handling different possible field names
+        card: CardType = {"name": card_data.get("name", "")}
+
+        # Add mana cost information
+        if "mana_cost" in card_data:
+            card["mana_cost"] = card_data["mana_cost"]
+        elif "manaCost" in card_data:
+            card["mana_cost"] = card_data["manaCost"]
+
+        # Add converted mana cost / mana value
+        if "cmc" in card_data:
+            card["cmc"] = card_data["cmc"]
+        elif "convertedManaCost" in card_data:
+            card["cmc"] = card_data["convertedManaCost"]
+        elif "manaValue" in card_data:
+            card["cmc"] = card_data["manaValue"]
+
+        # Add type information
+        if "type_line" in card_data:
+            card["type_line"] = card_data["type_line"]
+        elif "type" in card_data:
+            card["type_line"] = card_data["type"]
+
+        # Add card text
+        if "oracle_text" in card_data:
+            card["oracle_text"] = card_data["oracle_text"]
+        elif "text" in card_data:
+            card["oracle_text"] = card_data["text"]
+
+        # Add color information
+        if "colors" in card_data:
+            card["colors"] = card_data["colors"]
+
+        if "color_identity" in card_data:
+            card["color_identity"] = card_data["color_identity"]
+        elif "colorIdentity" in card_data:
+            card["color_identity"] = card_data["colorIdentity"]
+
+        # Add power/toughness for creatures
+        if "power" in card_data:
+            card["power"] = card_data["power"]
+
+        if "toughness" in card_data:
+            card["toughness"] = card_data["toughness"]
+
+        # Add loyalty for planeswalkers
+        if "loyalty" in card_data:
+            card["loyalty"] = card_data["loyalty"]
+
+        # Add keywords
+        if "keywords" in card_data:
+            card["keywords"] = card_data["keywords"]
+
+        # Add legalities
+        if "legalities" in card_data:
+            card["legalities"] = card_data["legalities"]
+
+        # Add type information (for detailed categorization)
+        if "types" in card_data:
+            card["types"] = card_data["types"]
+
+        if "subtypes" in card_data:
+            card["subtypes"] = card_data["subtypes"]
+
+        if "supertypes" in card_data:
+            card["supertypes"] = card_data["supertypes"]
+
+        # Add rulings if available
+        if "rulings" in card_data:
+            card["rulings"] = card_data["rulings"]
+
+        return card
+
+    def load_rules(self) -> int:
+        """
+        Load comprehensive rules from local JSON file.
+
+        Returns:
+            Number of rule entries loaded
+        """
+        if not os.path.exists(self.rules_file):
+            logger.warning(f"Rules file not found: {self.rules_file}")
+            return 0
+
+        logger.info(f"Loading rules from: {self.rules_file}")
+        try:
             with open(self.rules_file, "r", encoding="utf-8") as f:
-                self.rules = json.load(f)
-            logger.info(f"Loaded {len(self.rules)} rule entries from cache")
-            return
+                rules_data = json.load(f)
 
-        # In a real implementation, we would download and parse the rules
-        # from the official source. For now, we'll create a placeholder.
-        logger.warning("Comprehensive rules download not yet implemented")
-        self.rules = {
-            "101.1": "Magic is a game where players cast spells and summon creatures to defeat their opponents.",
-            "102.1": "A player wins the game if all opponents have left the game or a game effect states that player wins.",
-            "103.1": "At the start of a game, each player shuffles their deck to form their library.",
-            # Add more rules as needed
-        }
+                # Reset rules dictionary
+                self.rules = {}
 
-        # Save to cache
-        with open(self.rules_file, "w", encoding="utf-8") as f:
-            json.dump(self.rules, f)
-        logger.info(f"Saved rules to cache: {self.rules_file}")
+                # Check if the data is in the expected format
+                if not isinstance(rules_data, dict) or "categories" not in rules_data:
+                    logger.error(
+                        "Rules file does not contain expected 'categories' field"
+                    )
+                    return 0
 
-    def _create_documents_for_retrieval(self) -> List[Dict[str, str]]:
-        """Create documents for retrieval system."""
-        documents = []
+                # Process hierarchical rules
+                self._process_hierarchical_rules(rules_data)
+
+                # Log results
+                logger.info(f"Loaded {len(self.rules)} rule entries")
+                return len(self.rules)
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse rules file: {self.rules_file}")
+            return 0
+        except Exception as e:
+            logger.error(f"Error loading rules file: {str(e)}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            return 0
+
+    def _process_hierarchical_rules(self, rules_data: Dict[str, Any]) -> None:
+        """
+        Process hierarchical rules data into a flat dictionary.
+
+        Args:
+            rules_data: Hierarchical rules data with categories, sections, rules, and subrules
+        """
+        # Get the categories list
+        categories = rules_data.get("categories", [])
+
+        # Process each category
+        for category in categories:
+            category_number = category.get("category_number", "")
+            category_title = category.get("title", "")
+
+            # Process sections in each category
+            for section in category.get("sections", []):
+                section_number = section.get("section_number", "")
+                section_title = section.get("title", "")
+
+                # Process rules in each section
+                for rule in section.get("rules", []):
+                    # Add the main rule
+                    rule_number = rule.get("rule_number", "")
+                    rule_text = rule.get("text", "")
+
+                    if rule_number:
+                        self.rules[rule_number] = rule_text
+
+                    # Process subrules recursively
+                    if "subrules" in rule:
+                        self._process_subrules(rule.get("subrules", []))
+
+    def _process_subrules(self, subrules: List[Dict[str, Any]]) -> None:
+        """
+        Recursively process subrules, adding them to the rules dictionary.
+
+        Args:
+            subrules: List of subrule objects with rule_number, text, and potentially more subrules
+        """
+        for subrule in subrules:
+            # Add this subrule
+            rule_number = subrule.get("rule_number", "")
+            rule_text = subrule.get("text", "")
+
+            if rule_number:
+                self.rules[rule_number] = rule_text
+
+            # Process any nested subrules
+            if "subrules" in subrule:
+                self._process_subrules(subrule.get("subrules", []))
+
+    def _create_documents_for_retrieval(self) -> List[DocumentType]:
+        """
+        Create documents for retrieval system from loaded data.
+
+        Returns:
+            List of documents formatted for retrieval
+        """
+        documents: List[DocumentType] = []
 
         # Add card documents
+        self._add_card_documents(documents)
+
+        # Add rule documents
+        self._add_rule_documents(documents)
+
+        logger.info(f"Created {len(documents)} documents for retrieval")
+        return documents
+
+    def _add_card_documents(self, documents: List[DocumentType]) -> None:
+        """
+        Add card documents to the document list.
+
+        Args:
+            documents: List to add documents to
+        """
         for card_name, card in self.cards.items():
-            doc_text = f"Card Name: {card_name}\n"
-
-            if card.get("mana_cost"):
-                doc_text += f"Mana Cost: {card['mana_cost']}\n"
-
-            if card.get("type_line"):
-                doc_text += f"Type: {card['type_line']}\n"
-
-            if card.get("oracle_text"):
-                doc_text += f"Text: {card['oracle_text']}\n"
-
-            if card.get("power") and card.get("toughness"):
-                doc_text += f"Power/Toughness: {card['power']}/{card['toughness']}\n"
-
-            if card.get("loyalty"):
-                doc_text += f"Loyalty: {card['loyalty']}\n"
-
-            if card.get("keywords"):
-                doc_text += f"Keywords: {', '.join(card['keywords'])}\n"
-
-            # Add rulings with proper formatting
-            if card.get("rulings"):
-                doc_text += "\nRulings:\n"
-                for ruling in card["rulings"]:
-                    # Format date as YYYY-MM-DD for consistency
-                    date = ruling.get("date", "")
-                    text = ruling.get("text", "")
-                    doc_text += f"- [{date}] {text}\n"
-
-            # Create the main card document
+            doc_text = self._format_card_document_text(card_name, card)
             documents.append(
                 {
                     "id": f"card_{card_name.lower().replace(' ', '_')}",
@@ -314,28 +478,18 @@ class MTGDataLoader:
                 }
             )
 
-            # For cards with rulings, create additional documents for each ruling
-            if card.get("rulings") and len(card["rulings"]) > 0:
-                for i, ruling in enumerate(card["rulings"]):
-                    ruling_text = f"Card: {card_name}\n"
-                    ruling_text += f"Ruling: {ruling['text']}\n"
-                    ruling_text += f"Date: {ruling['date']}\n"
+    def _add_rule_documents(self, documents: List[DocumentType]) -> None:
+        """
+        Add individual rule documents to the document list.
 
-                    # Add some context about the card
-                    ruling_text += f"Card Type: {card.get('type_line', '')}\n"
-                    if card.get("oracle_text"):
-                        ruling_text += f"Card Text: {card.get('oracle_text', '')}\n"
-
-                    documents.append(
-                        {
-                            "id": f"ruling_{card_name.lower().replace(' ', '_')}_{i}",
-                            "type": "ruling",
-                            "text": ruling_text,
-                        }
-                    )
-
-        # Add rule documents
+        Args:
+            documents: List to add documents to
+        """
         for rule_id, rule_text in self.rules.items():
+            # Skip if the rule_text isn't a string (could be a list or dict in some formats)
+            if not isinstance(rule_text, str):
+                continue
+
             documents.append(
                 {
                     "id": f"rule_{rule_id}",
@@ -344,10 +498,65 @@ class MTGDataLoader:
                 }
             )
 
-        logger.info(f"Created {len(documents)} documents for retrieval")
-        return documents
+    def _format_card_document_text(self, card_name: str, card: CardType) -> str:
+        """
+        Format card data as text for document.
 
-    def get_card(self, name: str) -> Optional[Dict[str, Any]]:
+        Args:
+            card_name: Name of the card
+            card: Card data
+
+        Returns:
+            Formatted document text
+        """
+        doc_text = f"Card Name: {card_name}\n"
+
+        # Add basic card information
+        if "mana_cost" in card and card["mana_cost"]:
+            doc_text += f"Mana Cost: {card['mana_cost']}\n"
+
+        if "type_line" in card and card["type_line"]:
+            doc_text += f"Type: {card['type_line']}\n"
+        elif "type" in card:  # Try alternative field name
+            doc_text += f"Type: {card['type']}\n"
+
+        if "oracle_text" in card and card["oracle_text"]:
+            doc_text += f"Text: {card['oracle_text']}\n"
+        elif "text" in card:  # Try alternative field name
+            doc_text += f"Text: {card['text']}\n"
+
+        if "power" in card and "toughness" in card:
+            doc_text += f"Power/Toughness: {card['power']}/{card['toughness']}\n"
+
+        if "loyalty" in card and card["loyalty"]:
+            doc_text += f"Loyalty: {card['loyalty']}\n"
+
+        if "keywords" in card and card["keywords"]:
+            doc_text += f"Keywords: {', '.join(card['keywords'])}\n"
+
+        # Add type information
+        types = []
+        if "supertypes" in card and card["supertypes"]:
+            types.extend(card["supertypes"])
+
+        if "types" in card and card["types"]:
+            types.extend(card["types"])
+
+        if "subtypes" in card and card["subtypes"]:
+            types.extend(card["subtypes"])
+
+        if types:
+            doc_text += f"All Types: {', '.join(types)}\n"
+
+        # Add rulings if available
+        if "rulings" in card and card["rulings"]:
+            doc_text += "\nRulings:\n"
+            for ruling in card["rulings"]:
+                doc_text += f"- [{ruling['date']}] {ruling['text']}\n"
+
+        return doc_text
+
+    def get_card(self, name: str) -> Optional[CardType]:
         """
         Get card data by name.
 
@@ -379,7 +588,9 @@ class MTGDataLoader:
         Returns:
             Rule text or None if not found
         """
-        return self.rules.get(rule_id)
+        rule = self.rules.get(rule_id)
+        # Only return if the rule is a string (not a list or dict)
+        return rule if isinstance(rule, str) else None
 
     def search_cards(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
@@ -390,45 +601,87 @@ class MTGDataLoader:
             limit: Maximum number of results to return
 
         Returns:
-            List of matching cards
+            List of matching cards with scores
         """
         results = []
         query_lower = query.lower()
 
-        # Search by name, text, and type
         for card_name, card in self.cards.items():
             score = 0
 
             # Check name match
             if query_lower in card_name.lower():
                 score += 10
-
                 # Exact match gets highest priority
                 if query_lower == card_name.lower():
                     score += 100
 
-            # Check text match
-            if (
-                card.get("oracle_text")
-                and query_lower in card.get("oracle_text", "").lower()
-            ):
+            # Check text match - try different field names
+            card_text = ""
+            if "oracle_text" in card and card["oracle_text"]:
+                card_text = card["oracle_text"]
+            elif "text" in card and card["text"]:
+                card_text = card["text"]
+
+            if card_text and query_lower in card_text.lower():
                 score += 5
 
-            # Check type match
-            if (
-                card.get("type_line")
-                and query_lower in card.get("type_line", "").lower()
-            ):
+            # Check type match - try different field names
+            card_type = ""
+            if "type_line" in card and card["type_line"]:
+                card_type = card["type_line"]
+            elif "type" in card and card["type"]:
+                card_type = card["type"]
+
+            if card_type and query_lower in card_type.lower():
                 score += 3
 
-            # Keywords match
-            for keyword in card.get("keywords", []):
-                if query_lower in keyword.lower():
-                    score += 2
-
             if score > 0:
-                results.append((score, card_name, card))
+                # Create a copy with name included and add score
+                card_copy = dict(card)
+                card_copy["name"] = card_name
+                card_copy["score"] = score
+                results.append(card_copy)
 
         # Sort by score and return top matches
-        results.sort(reverse=True, key=lambda x: x[0])
-        return [{"name": name, **card} for _, name, card in results[:limit]]
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return results[:limit]
+
+    def search_rules(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Search for rules by text or rule number.
+
+        Args:
+            query: Search query
+            limit: Maximum number of results to return
+
+        Returns:
+            List of matching rules with score and text
+        """
+        results = []
+        query_lower = query.lower()
+
+        for rule_id, rule_text in self.rules.items():
+            # Skip if rule_text is not a string
+            if not isinstance(rule_text, str):
+                continue
+
+            score = 0
+
+            # Check rule ID match
+            if query in rule_id:
+                score += 20
+                # Exact match gets highest priority
+                if rule_id == query:
+                    score += 100
+
+            # Check rule text match
+            if query_lower in rule_text.lower():
+                score += 10
+
+            if score > 0:
+                results.append({"rule_id": rule_id, "text": rule_text, "score": score})
+
+        # Sort by score and limit results
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return results[:limit]
