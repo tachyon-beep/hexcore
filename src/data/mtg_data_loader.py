@@ -125,7 +125,7 @@ class MTGDataLoader:
 
     def _load_cards_from_sets_data(self, sets_data: Dict[str, Any]) -> int:
         """
-        Load cards from a data structure organized by sets.
+        Load cards from a data structure organised by sets.
 
         Args:
             sets_data: Dictionary of set code -> set data
@@ -138,32 +138,45 @@ class MTGDataLoader:
         card_count = 0
 
         for set_code, set_data in sets_data.items():
-            if isinstance(set_data, dict) and "cards" in set_data:
-                cards_in_set = set_data["cards"]
-                total_cards += len(cards_in_set)
+            if not (isinstance(set_data, dict) and "cards" in set_data):
+                continue
 
-                for card_data in cards_in_set:
-                    # Skip non-English cards
-                    if card_data.get("language", "English") != "English":
-                        continue
-
-                    # Get card name
-                    card_name = card_data.get("name")
-                    if not card_name:
-                        continue
-
-                    # Process card
-                    if card_name not in self.cards:
-                        self.cards[card_name] = self._process_card_data(card_data)
-                        card_count += 1
-                    elif self._should_update_card(self.cards[card_name], card_data):
-                        # Replace with better version
-                        self.cards[card_name] = self._process_card_data(card_data)
+            cards_in_set = set_data["cards"]
+            total_cards += len(cards_in_set)
+            card_count += self._process_cards_in_set(cards_in_set)
 
         logger.info(
             f"Found {total_cards} total cards across all sets, loaded {card_count} unique cards"
         )
         return card_count
+
+    def _process_cards_in_set(self, cards_in_set: list) -> int:
+        """
+        Process the list of cards for a given set.
+
+        Args:
+            cards_in_set: List of card data dictionaries.
+
+        Returns:
+            Number of unique cards loaded from this set.
+        """
+        count = 0
+        for card_data in cards_in_set:
+            # Skip non-English cards
+            if card_data.get("language", "English") != "English":
+                continue
+
+            card_name = card_data.get("name")
+            if not card_name:
+                continue
+
+            # Process card: add new card or update if needed
+            if card_name not in self.cards:
+                self.cards[card_name] = self._process_card_data(card_data)
+                count += 1
+            elif self._should_update_card(self.cards[card_name], card_data):
+                self.cards[card_name] = self._process_card_data(card_data)
+        return count
 
     def load_cards(self) -> int:
         """
@@ -181,81 +194,39 @@ class MTGDataLoader:
             with open(self.cards_file, "r", encoding="utf-8") as f:
                 cards_data = json.load(f)
 
-                # Reset cards dictionary
-                self.cards = {}
+            # Reset cards dictionary
+            self.cards = {}
 
-                # Check for meta/data structure
-                if not isinstance(cards_data, dict):
-                    logger.error(
-                        f"Expected dictionary at top level, got {type(cards_data)}"
-                    )
-                    return 0
-
-                if "data" not in cards_data:
-                    logger.error("No 'data' field found in cards file")
-                    return 0
-
-                # Get the data section which should contain sets
-                sets_data = cards_data["data"]
-
-                if not isinstance(sets_data, dict):
-                    logger.error(
-                        f"Expected dictionary in 'data' section, got {type(sets_data)}"
-                    )
-                    return 0
-
-                # Count for logging
-                total_cards_processed = 0
-                unique_cards_found = 0
-
-                # Iterate through each set
-                for set_code, set_data in sets_data.items():
-                    # Skip meta field if it exists at this level
-                    if set_code == "meta":
-                        continue
-
-                    # Check if this set has cards
-                    if not isinstance(set_data, dict) or "cards" not in set_data:
-                        logger.debug(f"Set {set_code} has no cards field")
-                        continue
-
-                    # Get the cards array for this set
-                    cards_in_set = set_data["cards"]
-
-                    if not isinstance(cards_in_set, list):
-                        logger.warning(
-                            f"Expected list in 'cards' field of set {set_code}, got {type(cards_in_set)}"
-                        )
-                        continue
-
-                    total_cards_processed += len(cards_in_set)
-
-                    # Process each card in the set
-                    for card_data in cards_in_set:
-                        if not isinstance(card_data, dict):
-                            continue
-
-                        # Skip non-English cards
-                        if card_data.get("language", "English") != "English":
-                            continue
-
-                        # Get card name
-                        card_name = card_data.get("name")
-                        if not card_name:
-                            continue
-
-                        # Process card
-                        if card_name not in self.cards:
-                            self.cards[card_name] = self._process_card_data(card_data)
-                            unique_cards_found += 1
-                        elif self._should_update_card(self.cards[card_name], card_data):
-                            # Replace with better version
-                            self.cards[card_name] = self._process_card_data(card_data)
-
-                logger.info(
-                    f"Processed {total_cards_processed} cards from all sets, loaded {unique_cards_found} unique cards"
+            # Validate the basic structure of the JSON
+            if not isinstance(cards_data, dict) or "data" not in cards_data:
+                logger.error(
+                    "Invalid cards file format: missing 'data' field or top-level dict"
                 )
-                return unique_cards_found
+                return 0
+
+            sets_data = cards_data["data"]
+            if not isinstance(sets_data, dict):
+                logger.error(
+                    f"Expected dictionary in 'data' section, got {type(sets_data)}"
+                )
+                return 0
+
+            total_cards_processed = 0
+            unique_cards_found = 0
+
+            # Iterate through each set and process cards using a helper method
+            for set_code, set_data in sets_data.items():
+                if set_code == "meta":
+                    continue
+
+                unique, total = self._process_set_cards(set_code, set_data)
+                unique_cards_found += unique
+                total_cards_processed += total
+
+            logger.info(
+                f"Processed {total_cards_processed} cards from all sets, loaded {unique_cards_found} unique cards"
+            )
+            return unique_cards_found
 
         except json.JSONDecodeError:
             logger.error(f"Failed to parse cards file: {self.cards_file}")
@@ -266,6 +237,51 @@ class MTGDataLoader:
 
             logger.error(traceback.format_exc())
             return 0
+
+    def _process_set_cards(self, set_code: str, set_data: Any) -> tuple:
+        """
+        Process card data for a specific set.
+
+        Args:
+            set_code: Identifier for the set.
+            set_data: The set data, expected to contain a "cards" field.
+
+        Returns:
+            A tuple (unique_cards_found, total_cards_processed) for the set.
+        """
+        if not isinstance(set_data, dict) or "cards" not in set_data:
+            logger.debug(f"Set {set_code} has no cards field")
+            return 0, 0
+
+        cards_in_set = set_data["cards"]
+        if not isinstance(cards_in_set, list):
+            logger.warning(
+                f"Expected list in 'cards' field of set {set_code}, got {type(cards_in_set)}"
+            )
+            return 0, 0
+
+        total_cards = len(cards_in_set)
+        unique_cards = 0
+
+        for card_data in cards_in_set:
+            if not isinstance(card_data, dict):
+                continue
+            # Skip non-English cards
+            if card_data.get("language", "English") != "English":
+                continue
+
+            card_name = card_data.get("name")
+            if not card_name:
+                continue
+
+            # Process card data and update the dictionary as needed
+            if card_name not in self.cards:
+                self.cards[card_name] = self._process_card_data(card_data)
+                unique_cards += 1
+            elif self._should_update_card(self.cards[card_name], card_data):
+                self.cards[card_name] = self._process_card_data(card_data)
+
+        return unique_cards, total_cards
 
     def _process_card_data(self, card_data: Dict[str, Any]) -> CardType:
         """
@@ -404,14 +420,8 @@ class MTGDataLoader:
 
         # Process each category
         for category in categories:
-            category_number = category.get("category_number", "")
-            category_title = category.get("title", "")
-
             # Process sections in each category
             for section in category.get("sections", []):
-                section_number = section.get("section_number", "")
-                section_title = section.get("title", "")
-
                 # Process rules in each section
                 for rule in section.get("rules", []):
                     # Add the main rule
@@ -496,61 +506,75 @@ class MTGDataLoader:
 
     def _format_card_document_text(self, card_name: str, card: CardType) -> str:
         """
-        Format card data as text for document.
+        Format card data as text for a document by assembling parts from helper functions.
 
         Args:
             card_name: Name of the card
-            card: Card data
+            card: Card data dictionary
 
         Returns:
-            Formatted document text
+            Formatted document text as a string.
         """
-        doc_text = f"Card Name: {card_name}\n"
+        parts = [f"Card Name: {card_name}"]
+        parts.extend(self._format_basic_info(card))
+        parts.extend(self._format_types(card))
 
-        # Add basic card information
-        if "mana_cost" in card and card["mana_cost"]:
-            doc_text += f"Mana Cost: {card['mana_cost']}\n"
+        rulings_text = self._format_rulings(card)
+        if rulings_text:
+            parts.append(rulings_text)
 
-        if "type_line" in card and card["type_line"]:
-            doc_text += f"Type: {card['type_line']}\n"
-        elif "type" in card:  # Try alternative field name
-            doc_text += f"Type: {card['type']}\n"
+        return "\n".join(parts)
 
-        if "oracle_text" in card and card["oracle_text"]:
-            doc_text += f"Text: {card['oracle_text']}\n"
-        elif "text" in card:  # Try alternative field name
-            doc_text += f"Text: {card['text']}\n"
+    def _format_basic_info(self, card: CardType) -> list:
+        """Return basic card information as a list of strings."""
+        info = []
 
-        if "power" in card and "toughness" in card:
-            doc_text += f"Power/Toughness: {card['power']}/{card['toughness']}\n"
+        mana_cost = card.get("mana_cost")
+        if mana_cost:
+            info.append(f"Mana Cost: {mana_cost}")
 
-        if "loyalty" in card and card["loyalty"]:
-            doc_text += f"Loyalty: {card['loyalty']}\n"
+        card_type = card.get("type_line") or card.get("type")
+        if card_type:
+            info.append(f"Type: {card_type}")
 
-        if "keywords" in card and card["keywords"]:
-            doc_text += f"Keywords: {', '.join(card['keywords'])}\n"
+        text = card.get("oracle_text") or card.get("text")
+        if text:
+            info.append(f"Text: {text}")
 
-        # Add type information
-        types = []
-        if "supertypes" in card and card["supertypes"]:
-            types.extend(card["supertypes"])
+        power = card.get("power")
+        toughness = card.get("toughness")
+        if power is not None and toughness is not None:
+            info.append(f"Power/Toughness: {power}/{toughness}\n")
 
-        if "types" in card and card["types"]:
-            types.extend(card["types"])
+        loyalty = card.get("loyalty")
+        if loyalty:
+            info.append(f"Loyalty: {loyalty}")
 
-        if "subtypes" in card and card["subtypes"]:
-            types.extend(card["subtypes"])
+        keywords = card.get("keywords")
+        if keywords:
+            info.append(f"Keywords: {', '.join(keywords)}")
 
-        if types:
-            doc_text += f"All Types: {', '.join(types)}\n"
+        return info
 
-        # Add rulings if available
-        if "rulings" in card and card["rulings"]:
-            doc_text += "\nRulings:\n"
-            for ruling in card["rulings"]:
-                doc_text += f"- [{ruling['date']}] {ruling['text']}\n"
+    def _format_types(self, card: CardType) -> list:
+        """Return concatenated type information as a list of strings."""
+        type_parts = []
+        for key in ["supertypes", "types", "subtypes"]:
+            if card.get(key):
+                type_parts.extend(card[key])
+        if type_parts:
+            return [f"All Types: {', '.join(type_parts)}"]
+        return []
 
-        return doc_text
+    def _format_rulings(self, card: CardType) -> str:
+        """Return formatted rulings if available, else an empty string."""
+        rulings = card.get("rulings")
+        if not rulings:
+            return ""
+        formatted = ["Rulings:"]
+        for ruling in rulings:
+            formatted.append(f"- [{ruling['date']}] {ruling['text']}")
+        return "\n".join(formatted)
 
     def get_card(self, name: str) -> Optional[CardType]:
         """
