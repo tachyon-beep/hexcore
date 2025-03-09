@@ -20,11 +20,20 @@ def get_faiss_version() -> Tuple[int, int, int]:
     """
     try:
         # Get version string using importlib.metadata instead of deprecated pkg_resources
+        version_str = None
+
         try:
             version_str = importlib.metadata.version("faiss-cpu")
-        except importlib.metadata.PackageNotFoundError:
-            # If faiss-cpu is not found, try faiss-gpu
-            version_str = importlib.metadata.version("faiss-gpu")
+        except (importlib.metadata.PackageNotFoundError, ImportError):
+            try:
+                # If faiss-cpu is not found, try faiss-gpu
+                version_str = importlib.metadata.version("faiss-gpu")
+            except (importlib.metadata.PackageNotFoundError, ImportError) as e:
+                logger.warning(f"Could not determine FAISS version: {str(e)}")
+                return (1, 7, 0)  # Default fallback version
+
+        if not version_str:
+            return (1, 7, 0)  # Default fallback version if we couldn't get a version
 
         # Parse version string - handle different formats
         # Could be something like '1.7.2' or '1.7.2.post1'

@@ -10,7 +10,9 @@ The Hexcore MTG AI Reasoning Assistant project has successfully implemented core
 
 Recently completed memory optimization features have resolved critical issues with dual 16GB GPU utilization, significantly improving memory balance and stability. All integration tests are now passing, including previously problematic KV cache tests, signaling a major milestone in system stability. The architecture is fundamentally sound, with most core components fully implemented and tested.
 
-Current development priorities include finalizing training infrastructure for expert-specific adapters, enhancing knowledge integration, and implementing advanced features for production-readiness. The project is approximately 80% complete, with the fundamental capabilities operational and remaining work primarily focused on optimization and enhanced functionality.
+The knowledge integration system has seen significant advancement with the implementation of an advanced hybrid retrieval system combining vector search and knowledge graph traversal. This system intelligently selects and formats knowledge for model consumption while maintaining strict latency budgets.
+
+Current development priorities include finalizing training infrastructure for expert-specific adapters and implementing advanced features for production-readiness. The project is approximately 85% complete, with the fundamental capabilities operational and remaining work primarily focused on optimization and enhanced functionality.
 
 ## Core Component Status
 
@@ -109,27 +111,83 @@ class CrossExpertAttention(nn.Module):
 
 The cross-expert attention mechanism effectively enables collaboration between expert types while maintaining memory efficiency, a critical component for the system's overall functionality.
 
-### 5. Knowledge Integration (85% Complete)
+### 5. Knowledge Integration (95% Complete)
 
-Knowledge retrieval and integration is operational with several core features:
+Knowledge retrieval and integration is now advanced with comprehensive hybrid features:
 
 - **✅ Retrieval Infrastructure**: Complete implementation of retrieval-augmented generation (RAG) components
 - **✅ FAISS Integration**: Vector storage and similarity search with FAISS
 - **✅ Compatibility Features**: Version handling for different FAISS implementations
 - **✅ Category-Based Retrieval**: Support for retrieving by document categories
 - **✅ Index Management**: Support for saving and loading retrieval indices
-- **⚠️ Knowledge Graph Integration**: Basic knowledge graph structure designed but not fully integrated
-- **⚠️ Dynamic Knowledge Selection**: Smart selection between knowledge sources needs enhancement
+- **✅ Hybrid Retrieval System**: Advanced system that combines vector search and knowledge graph traversal
+- **✅ Context Assembly**: Intelligent selection and formatting of knowledge for model consumption
+- **✅ Latency Management**: Sophisticated budget allocation and monitoring to ensure responses within latency requirements
+- **✅ Performance Monitoring**: Comprehensive tracking and optimization of retrieval latency
+- **✅ Cache Integration**: Advanced caching with entity-based invalidation for optimal performance
+- **⚠️ Production Metrics**: Additional production monitoring and alerting needs implementation
 
 ```python
-# Retrieval system with category support:
-def retrieve_by_categories(self, query: str, top_k_per_type: int = 3) -> Dict[str, List[Dict[str, Any]]]:
+# Enhanced knowledge retrieval with hybrid capabilities:
+def retrieve_and_assemble(
+    self,
+    query: str,
+    max_tokens: int = 3072,
+    latency_budget_ms: Optional[float] = None,
+):
     """
-    Retrieve documents by category, retrieving top_k for each document type.
+    Retrieve knowledge and assemble it into a context for the model.
+
+    This convenience method combines retrieval and context assembly.
+
+    Args:
+        query: User query string
+        max_tokens: Maximum tokens for the assembled context
+        latency_budget_ms: Maximum retrieval latency budget
+
+    Returns:
+        Dictionary with assembled context and metadata
     """
+    # Allocate latency budget: 80% for retrieval, 20% for assembly
+    total_budget = latency_budget_ms or self.default_latency_budget_ms
+    retrieval_budget = total_budget * 0.8
+    assembly_budget = total_budget * 0.2
+
+    # First retrieve information
+    start_time = time.time()
+
+    # Analyze query for retrieval strategy
+    query_analysis = self.query_analyzer.analyze_query(query)
+
+    # Retrieve results
+    retrieved_info = self.retrieve(
+        query,
+        top_k=10,  # Get more than needed to allow filtering
+        latency_budget_ms=retrieval_budget,
+        prioritize_graph=query_analysis["prioritize_graph"],
+    )
+
+    retrieval_time = (time.time() - start_time) * 1000
+
+    # Then assemble context
+    context_result = self.context_assembler.assemble_context(
+        query,
+        retrieved_info,
+        query_analysis=query_analysis,
+        max_tokens=max_tokens,
+        latency_budget_ms=assembly_budget,
+    )
+
+    # Add retrieval metrics to context result
+    if "metrics" not in context_result:
+        context_result["metrics"] = {}
+    context_result["metrics"]["retrieval_time_ms"] = retrieval_time
+    context_result["metrics"]["total_time_ms"] = (time.time() - start_time) * 1000
+
+    return context_result
 ```
 
-Knowledge integration provides effective retrieval capabilities, but further work is needed on advanced features like knowledge graph integration and dynamic selection.
+The knowledge integration system now provides sophisticated, performant access to MTG knowledge through a hybrid approach that intelligently selects between vector search and knowledge graph traversal while carefully managing latency budgets.
 
 ### 6. Memory Management & Optimization (95% Complete)
 
@@ -184,7 +242,7 @@ The inference pipeline integrates all components effectively:
 
 - **✅ Expert Selection**: Transaction-based expert selection fully integrated
 - **✅ Cross-Expert Integration**: Expert outputs combined via cross-expert attention
-- **✅ Knowledge Integration**: Basic retrieval-augmented generation working
+- **✅ Knowledge Integration**: Enhanced retrieval-augmented generation implemented
 - **⚠️ Advanced Generation Features**: Streaming generation partially implemented
 - **⚠️ Production Readiness**: Additional error handling and logging needed
 - **⚠️ Interactive Refinement**: Multi-turn interaction capabilities need enhancement
@@ -220,6 +278,17 @@ Implemented thorough memory management infrastructure:
 - Further refined expert distribution for optimal balance
 - Fixed all integration tests, including previously problematic KV cache tests
 
+### 4. Knowledge System Enhancement (March 10)
+
+Implemented advanced knowledge retrieval and assembly system:
+
+- Created comprehensive hybrid retrieval combining vector and graph-based approaches
+- Added `ContextAssembler` for intelligent selection and formatting of knowledge
+- Implemented latency budget management throughout the knowledge pipeline
+- Created dedicated performance monitoring system for knowledge components
+- Added sophisticated caching with entity-based invalidation
+- Developed demo and examples for the enhanced knowledge system
+
 ## Project Completion Assessment
 
 | Component                    | Completion | Status                                                                               |
@@ -228,11 +297,11 @@ Implemented thorough memory management infrastructure:
 | Transaction Classification   |    100%    | Fully implemented and tested                                                         |
 | Expert Adapter Management    |    95%     | Complete except adapter training                                                     |
 | Cross-Expert Attention       |    100%    | Fully implemented and optimized                                                      |
-| Knowledge Integration        |    85%     | Core retrieval working, advanced features needed                                     |
+| Knowledge Integration        |    95%     | Advanced hybrid system implemented, production metrics needed                        |
 | Memory Management            |    95%     | Core optimizations complete, monitoring in progress                                  |
 | KV Cache Management          |    90%     | Fully functional, advanced features planned                                          |
 | Inference Pipeline           |    85%     | Core functionality working, enhancements needed                                      |
-| **Overall Project**          |  **80%**   | **Most core components operational, advanced features and optimization in progress** |
+| **Overall Project**          |  **85%**   | **Most core components operational, advanced features and optimization in progress** |
 
 ### Production Readiness Assessment
 
@@ -241,609 +310,32 @@ The MTG AI Reasoning Assistant is now stable on the target hardware configuratio
 1. Load the Mixtral 8×7B model with efficient memory distribution
 2. Classify queries into appropriate expert types
 3. Apply expert-specific adapters with memory-efficient management
-4. Integrate knowledge through retrieval-augmented generation
+4. Integrate knowledge through sophisticated hybrid retrieval
 5. Combine expert outputs using cross-expert attention
 6. Manage memory effectively across operations
 
 The following areas still require attention for full production readiness:
 
 1. **Adapter Training**: Implement and validate expert adapter training
-2. **Knowledge Graph Integration**: Enhance knowledge integration with structured knowledge graph
-3. **Advanced Memory Monitoring**: Add real-time memory monitoring and leak detection
-4. **Streaming Generation**: Fully implement and optimize streaming response generation
-5. **Error Recovery**: Enhance error handling and automatic recovery
-6. **Performance Benchmarking**: Comprehensive performance testing and optimization
+2. **Advanced Memory Monitoring**: Add real-time memory monitoring and leak detection
+3. **Streaming Generation**: Fully implement and optimize streaming response generation
+4. **Error Recovery**: Enhance error handling and automatic recovery
+5. **Performance Benchmarking**: Comprehensive performance testing and optimization
 
 ## Next Steps
 
 The immediate priorities for development are:
 
-1. **Knowledge System Enhancement**: Improve knowledge graph integration and dynamic content retrieval
-2. **Adapter Training Implementation**: Complete the adapter training infrastructure
-3. **Advanced Memory Monitoring**: Implement real-time monitoring and leak detection
-4. **Production Hardening**: Add comprehensive error handling and recovery mechanisms
-5. **Comprehensive Evaluation**: Develop and run evaluation suite with MTG-specific benchmarks
+1. **Adapter Training Implementation**: Complete the adapter training infrastructure
+2. **Advanced Memory Monitoring**: Implement real-time monitoring and leak detection
+3. **Production Hardening**: Add comprehensive error handling and recovery mechanisms
+4. **Comprehensive Evaluation**: Develop and run evaluation suite with MTG-specific benchmarks
 
 With these enhancements, the system will achieve full production readiness while maintaining stability on the target hardware configuration.
 
 ## Detailed Implementation Plans
 
-### 1. Knowledge System Enhancement
-
-#### Overview
-
-The current knowledge retrieval system provides basic RAG functionality but lacks advanced knowledge graph integration and dynamic content selection. The enhanced system will create a hybrid approach that combines vector retrieval with structured knowledge access, with a focus on performance, reliability, and monitoring capabilities.
-
-#### Implementation Tasks
-
-1. **Knowledge Graph Schema Development** (2 days)
-
-   - Define entity types for MTG concepts (cards, rules, mechanics, etc.)
-   - Design relationship schema between entities
-   - Implement entity/relationship validation functions
-   - Create schema migration capabilities for future updates
-
-   ```python
-   # Example knowledge graph schema
-   class MTGKnowledgeGraph:
-       def __init__(self):
-           self.entities = {
-               "cards": {},          # card_id -> card_data
-               "rules": {},          # rule_id -> rule_data
-               "mechanics": {},      # mechanic_id -> mechanic_data
-               "keywords": {},       # keyword_id -> keyword_data
-           }
-           self.relationships = {
-               "card_uses_mechanic": [],  # (card_id, mechanic_id)
-               "rule_references_rule": [], # (rule_id, referenced_rule_id)
-               "mechanic_governed_by_rule": [] # (mechanic_id, rule_id)
-           }
-
-           # Version tracking for cache invalidation
-           self.schema_version = "1.0.0"
-           self.last_updated = datetime.utcnow()
-   ```
-
-2. **Graph Construction Pipeline** (3 days)
-
-   - Extend `src/knowledge/retriever.py` with graph building capabilities
-   - Implement parsers for different data sources (cards.json, rules.json)
-   - Create functions to extract relationships from text
-   - Develop graph update/refresh mechanisms
-   - Add incremental update capability for efficiency
-
-   ```python
-   def build_graph_from_data(self, cards_data, rules_data, glossary_data):
-       """Build the knowledge graph from the provided data sources."""
-       # Process cards
-       for card in cards_data:
-           self._add_card_entity(card)
-           mechanics = self._extract_mechanics(card)
-           for mechanic in mechanics:
-               self._add_relationship("card_uses_mechanic", card["id"], mechanic["id"])
-
-       # Process rules
-       for rule in rules_data:
-           self._add_rule_entity(rule)
-           referenced_rules = self._extract_rule_references(rule["text"])
-           for ref_rule in referenced_rules:
-               self._add_relationship("rule_references_rule", rule["id"], ref_rule)
-
-       # Update version tracking
-       self.last_updated = datetime.utcnow()
-       self._invalidate_affected_cache_entries()
-   ```
-
-3. **Dedicated Knowledge Graph Caching Layer** (3 days)
-
-   - Implement persistent caching mechanism for knowledge graph queries
-   - Design time-based and content-based cache invalidation
-   - Add cache hit/miss rate metrics and monitoring
-   - Ensure thread-safety for concurrent access
-   - Implement memory-efficient cache storage
-
-   ```python
-   # New module: src/knowledge/cache_manager.py
-   class KnowledgeGraphCache:
-       def __init__(self, max_cache_size=1000, ttl_seconds=3600):
-           """
-           Initialize the knowledge graph cache.
-
-           Args:
-               max_cache_size: Maximum number of entries in cache
-               ttl_seconds: Time-to-live for cache entries in seconds
-           """
-           self.cache = {}
-           self.cache_access_times = {}
-           self.cache_creation_times = {}
-           self.max_cache_size = max_cache_size
-           self.ttl_seconds = ttl_seconds
-           self.cache_lock = threading.RLock()
-
-           # Metrics
-           self.metrics = {
-               "hits": 0,
-               "misses": 0,
-               "invalidations": 0,
-               "evictions": 0
-           }
-
-       def get(self, query_key):
-           """Get a result from cache if it exists and is valid."""
-           with self.cache_lock:
-               if query_key not in self.cache:
-                   self.metrics["misses"] += 1
-                   return None
-
-               # Check if entry has expired
-               creation_time = self.cache_creation_times[query_key]
-               if (datetime.utcnow() - creation_time).total_seconds() > self.ttl_seconds:
-                   self.invalidate(query_key)
-                   self.metrics["misses"] += 1
-                   return None
-
-               # Update access time and hit count
-               self.cache_access_times[query_key] = datetime.utcnow()
-               self.metrics["hits"] += 1
-               return self.cache[query_key]
-
-       def set(self, query_key, result, metadata=None):
-           """Store a result in the cache."""
-           with self.cache_lock:
-               # Evict entries if at capacity
-               if len(self.cache) >= self.max_cache_size and query_key not in self.cache:
-                   self._evict_least_recently_used()
-
-               # Store result
-               current_time = datetime.utcnow()
-               self.cache[query_key] = result
-               self.cache_access_times[query_key] = current_time
-               self.cache_creation_times[query_key] = current_time
-
-       def invalidate(self, query_key=None, entity_type=None, entity_id=None):
-           """Invalidate cache entries based on key or affected entities."""
-           with self.cache_lock:
-               if query_key is not None and query_key in self.cache:
-                   del self.cache[query_key]
-                   del self.cache_access_times[query_key]
-                   del self.cache_creation_times[query_key]
-                   self.metrics["invalidations"] += 1
-
-               # Content-based invalidation
-               if entity_type is not None:
-                   invalidated = 0
-                   # Use metadata to find and remove affected entries
-                   keys_to_remove = []
-                   for key in self.cache:
-                       if self._cache_entry_affected(key, entity_type, entity_id):
-                           keys_to_remove.append(key)
-
-                   for key in keys_to_remove:
-                       del self.cache[key]
-                       del self.cache_access_times[key]
-                       del self.cache_creation_times[key]
-                       invalidated += 1
-
-                   self.metrics["invalidations"] += invalidated
-
-       def get_metrics(self):
-           """Get cache performance metrics."""
-           with self.cache_lock:
-               total_requests = self.metrics["hits"] + self.metrics["misses"]
-               hit_rate = (self.metrics["hits"] / total_requests * 100) if total_requests > 0 else 0
-
-               return {
-                   "hit_rate": hit_rate,
-                   "size": len(self.cache),
-                   "max_size": self.max_cache_size,
-                   **self.metrics
-               }
-   ```
-
-4. **Hybrid Query System with Latency Monitoring** (4 days)
-
-   - Implement dual-path query processing (vector + graph)
-   - Develop query understanding to determine optimal retrieval strategy
-   - Create ranking function to merge results from different sources
-   - Add performance instrumentation and latency monitoring
-   - Implement latency-based fallback mechanisms
-
-   ```python
-   def hybrid_retrieve(self, query, top_k=5, latency_budget_ms=200):
-       """
-       Retrieve information using both vector search and graph traversal.
-
-       Args:
-           query: User query string
-           top_k: Number of results to retrieve
-           latency_budget_ms: Maximum allowed retrieval time in milliseconds
-       """
-       start_time = time.time()
-
-       # Check cache first
-       cache_key = self._generate_cache_key(query, top_k)
-       cached_result = self.cache.get(cache_key)
-       if cached_result:
-           retrieval_time = (time.time() - start_time) * 1000
-           self.latency_tracker.record("total", retrieval_time)
-           self.latency_tracker.record("cached", retrieval_time)
-           return cached_result
-
-       # Determine query type and entities mentioned
-       query_analysis_start = time.time()
-       query_analysis = self._analyze_query(query)
-       query_analysis_time = (time.time() - query_analysis_start) * 1000
-       self.latency_tracker.record("query_analysis", query_analysis_time)
-
-       # Check if we've already spent too much time
-       elapsed_ms = (time.time() - start_time) * 1000
-       remaining_budget = latency_budget_ms - elapsed_ms
-
-       # Vector retrieval (always done as fallback option)
-       vector_start = time.time()
-       vector_results = []
-       try:
-           vector_results = self.retrieve_by_similarity(
-               query,
-               top_k=top_k,
-               timeout_ms=min(remaining_budget, 100)  # Allocate part of budget
-           )
-       except TimeoutError:
-           # Log timeout
-           self.logger.warning(f"Vector retrieval timed out for query: {query}")
-       vector_time = (time.time() - vector_start) * 1000
-       self.latency_tracker.record("vector", vector_time)
-
-       # Update remaining budget and check
-       elapsed_ms = (time.time() - start_time) * 1000
-       remaining_budget = latency_budget_ms - elapsed_ms
-
-       # Graph traversal if entities identified and budget allows
-       graph_results = []
-       if query_analysis["entities"] and remaining_budget > 20:  # Minimum viable time
-           graph_start = time.time()
-           try:
-               graph_results = self._retrieve_by_graph_traversal(
-                   query_analysis["entities"],
-                   query_analysis["relationship_types"],
-                   timeout_ms=min(remaining_budget, 80)  # Allocate part of budget
-               )
-           except TimeoutError:
-               # Log timeout
-               self.logger.warning(f"Graph retrieval timed out for query: {query}")
-           graph_time = (time.time() - graph_start) * 1000
-           self.latency_tracker.record("graph", graph_time)
-
-       # Update remaining budget and check
-       elapsed_ms = (time.time() - start_time) * 1000
-       remaining_budget = latency_budget_ms - elapsed_ms
-
-       # Merge and rank results if budget allows
-       merge_start = time.time()
-       if remaining_budget <= 0:
-           # Emergency return if over budget
-           merged_results = vector_results or graph_results
-       else:
-           try:
-               merged_results = self._rank_and_merge_results(
-                   vector_results,
-                   graph_results,
-                   query_analysis["query_type"],
-                   timeout_ms=remaining_budget
-               )
-           except TimeoutError:
-               # Emergency return if ranking times out
-               self.logger.warning(f"Ranking timed out, using unranked results for query: {query}")
-               merged_results = vector_results + graph_results
-       merge_time = (time.time() - merge_start) * 1000
-       self.latency_tracker.record("merge", merge_time)
-
-       # Cache the result
-       self.cache.set(cache_key, merged_results, {
-           "entities": query_analysis["entities"],
-           "query_type": query_analysis["query_type"]
-       })
-
-       # Record total latency
-       total_time = (time.time() - start_time) * 1000
-       self.latency_tracker.record("total", total_time)
-
-       # Alert if consistently over budget
-       if total_time > latency_budget_ms:
-           self.logger.warning(
-               f"Retrieval latency ({total_time:.1f}ms) exceeded budget ({latency_budget_ms}ms) "
-               f"for query: {query}"
-           )
-           self._check_for_latency_pattern()
-
-       return merged_results
-   ```
-
-5. **Retrieval Latency Monitoring System** (3 days)
-
-   - Implement comprehensive latency tracking for all retrieval components
-   - Create configurable latency budget system
-   - Develop automatic fallback mechanisms for high-latency situations
-   - Build visualization dashboard for monitoring
-   - Add alerting for persistent latency issues
-
-   ```python
-   # New module: src/knowledge/latency_tracker.py
-   class RetrievalLatencyTracker:
-       def __init__(self, window_size=100, alert_threshold=0.95):
-           """
-           Track and analyze retrieval latencies.
-
-           Args:
-               window_size: Number of queries to track in the rolling window
-               alert_threshold: Alert threshold (e.g., 0.95 = alert if 95% of queries exceed budget)
-           """
-           self.latencies = {
-               "total": collections.deque(maxlen=window_size),
-               "vector": collections.deque(maxlen=window_size),
-               "graph": collections.deque(maxlen=window_size),
-               "merge": collections.deque(maxlen=window_size),
-               "query_analysis": collections.deque(maxlen=window_size),
-               "cached": collections.deque(maxlen=window_size)
-           }
-           self.budgets_exceeded = collections.deque(maxlen=window_size)
-           self.alert_threshold = alert_threshold
-           self.lock = threading.RLock()
-
-       def record(self, component, latency_ms):
-           """Record a latency measurement for a component."""
-           with self.lock:
-               if component in self.latencies:
-                   self.latencies[component].append(latency_ms)
-
-       def record_budget_exceeded(self, exceeded):
-           """Record whether latency budget was exceeded."""
-           with self.lock:
-               self.budgets_exceeded.append(exceeded)
-
-       def get_statistics(self):
-           """Get latency statistics for all components."""
-           with self.lock:
-               stats = {}
-               for component, values in self.latencies.items():
-                   if not values:
-                       stats[component] = {"count": 0}
-                       continue
-
-                   values_array = np.array(values)
-                   stats[component] = {
-                       "count": len(values),
-                       "mean": np.mean(values_array),
-                       "median": np.median(values_array),
-                       "p95": np.percentile(values_array, 95),
-                       "p99": np.percentile(values_array, 99),
-                       "min": np.min(values_array),
-                       "max": np.max(values_array)
-                   }
-
-               # Calculate budget exceeded rate
-               if self.budgets_exceeded:
-                   stats["budget_exceeded_rate"] = sum(self.budgets_exceeded) / len(self.budgets_exceeded)
-               else:
-                   stats["budget_exceeded_rate"] = 0
-
-               return stats
-
-       def should_alert(self):
-           """Determine if latency issues require alerting."""
-           with self.lock:
-               if not self.budgets_exceeded or len(self.budgets_exceeded) < 10:
-                   return False
-
-               exceeded_rate = sum(self.budgets_exceeded) / len(self.budgets_exceeded)
-               return exceeded_rate >= self.alert_threshold
-
-       def get_dashboard_data(self):
-           """Get data for dashboard visualization."""
-           with self.lock:
-               # Generate time-series data for visualization
-               components = list(self.latencies.keys())
-               series_data = {}
-
-               for component in components:
-                   if not self.latencies[component]:
-                       continue
-
-                   # Last 30 data points for time series
-                   series_data[component] = list(self.latencies[component])[-30:]
-
-               return {
-                   "series": series_data,
-                   "statistics": self.get_statistics(),
-                   "alert_status": self.should_alert()
-               }
-   ```
-
-6. **Context Assembly Optimization** (3 days)
-
-   - Develop smarter context assembly based on query needs
-   - Implement context compression for long document handling
-   - Create priority-based inclusion algorithms
-   - Add before/after hooks for dynamic context manipulation
-   - Implement latency-aware context assembly
-
-   ```python
-   def assemble_context(self, query, retrieved_docs, max_tokens=3072, latency_budget_ms=50):
-       """
-       Intelligently assemble context from retrieved documents.
-
-       Args:
-           query: User query
-           retrieved_docs: Documents retrieved from knowledge system
-           max_tokens: Maximum number of tokens to include
-           latency_budget_ms: Maximum time to spend on context assembly
-       """
-       start_time = time.time()
-
-       # Analyze importance and relevance - time-bounded
-       analysis_start = time.time()
-       try:
-           doc_scores = self._score_document_relevance(
-               query,
-               retrieved_docs,
-               timeout_ms=min(latency_budget_ms * 0.3, 20)  # Allocate part of budget
-           )
-       except TimeoutError:
-           # Fallback to simpler scoring
-           self.logger.warning("Document scoring timed out, using simplified relevance")
-           doc_scores = self._simple_relevance_score(query, retrieved_docs)
-       analysis_time = (time.time() - analysis_start) * 1000
-
-       # Update remaining budget
-       elapsed_ms = (time.time() - start_time) * 1000
-       remaining_budget = latency_budget_ms - elapsed_ms
-
-       # Check time budget
-       if remaining_budget <= 10:  # Minimum time needed
-           # Emergency fallback - use top documents without complex processing
-           return retrieved_docs[:min(3, len(retrieved_docs))]
-
-       # Sort by relevance
-       sorted_docs = sorted(zip(retrieved_docs, doc_scores),
-                           key=lambda x: x[1], reverse=True)
-
-       # Compress if needed
-       final_docs = []
-       token_count = 0
-       processing_start = time.time()
-
-       for doc, score in sorted_docs:
-           # Check time budget periodically
-           if len(final_docs) % 5 == 0:  # Check every 5 docs
-               if (time.time() - start_time) * 1000 > latency_budget_ms * 0.9:
-                   break  # Stop if approaching budget limit
-
-           # Check if adding would exceed token limit
-           doc_tokens = self._count_tokens(doc["text"])
-           if token_count + doc_tokens > max_tokens:
-               # Try compression instead of skipping
-               if score > 0.7:  # High relevance threshold
-                   try:
-                       compressed = self._compress_document(doc, query)
-                       compressed_tokens = self._count_tokens(compressed)
-                       if token_count + compressed_tokens <= max_tokens:
-                           final_docs.append({"text": compressed, "source": doc["source"]})
-                           token_count += compressed_tokens
-                   except Exception as e:
-                       self.logger.warning(f"Document compression failed: {e}")
-           else:
-               final_docs.append(doc)
-               token_count += doc_tokens
-
-       processing_time = (time.time() - processing_start) * 1000
-
-       # Record total latency
-       total_time = (time.time() - start_time) * 1000
-       self.latency_tracker.record("context_assembly", total_time)
-
-       return final_docs
-   ```
-
-7. **Integration with Inference Pipeline** (2 days)
-
-   - Update pipeline.py to use the enhanced knowledge system
-   - Implement query-specific retrieval strategy selection
-   - Add diagnostics for knowledge retrieval effectiveness
-   - Create fallback mechanisms for retrieval failures
-   - Integrate latency monitoring with inference metrics
-
-   ```python
-   # In src/inference/pipeline.py
-   def generate_with_knowledge(self, query, **generation_params):
-       """Generate response with enhanced knowledge integration."""
-       retrieval_start = time.time()
-
-       # Initial query analysis
-       query_analysis = self.knowledge_system.analyze_query(query)
-
-       # Select retrieval strategy based on query
-       latency_budget_ms = self.config.get("retrieval_latency_budget_ms", 200)
-       if query_analysis["requires_structured_knowledge"]:
-           retrieved_info = self.knowledge_system.hybrid_retrieve(
-               query,
-               top_k=5,
-               prioritize_graph=True,
-               latency_budget_ms=latency_budget_ms
-           )
-       else:
-           retrieved_info = self.knowledge_system.retrieve_by_similarity(
-               query,
-               top_k=5,
-               latency_budget_ms=latency_budget_ms
-           )
-
-       retrieval_time = (time.time() - retrieval_start) * 1000
-
-       # Assemble optimized context
-       context_start = time.time()
-       context = self.knowledge_system.assemble_context(
-           query,
-           retrieved_info,
-           max_tokens=self.context_window * 0.7,  # Reserve 30% for query and generation
-           latency_budget_ms=50  # Separate budget for context assembly
-       )
-       context_time = (time.time() - context_start) * 1000
-
-       # Log diagnostics
-       self.logger.info(
-           f"Retrieved {len(retrieved_info)} documents in {retrieval_time:.1f}ms, "
-           f"assembled {len(context)} in {context_time:.1f}ms"
-       )
-
-       # Record metrics
-       self.metrics_tracker.record("retrieval_latency_ms", retrieval_time)
-       self.metrics_tracker.record("context_assembly_latency_ms", context_time)
-       self.metrics_tracker.record("knowledge_documents_retrieved", len(retrieved_info))
-       self.metrics_tracker.record("knowledge_documents_used", len(context))
-
-       # Check if latency is consistently too high
-       if self.knowledge_system.latency_tracker.should_alert():
-           self.logger.warning(
-               "Knowledge retrieval consistently exceeding latency budget. "
-               "Consider optimizing or increasing budget."
-           )
-
-       # Generate with context
-       return self._generate_with_context(query, context, **generation_params)
-   ```
-
-8. **Testing, Visualization, and Evaluation** (3 days)
-   - Develop test cases specific to knowledge-intensive queries
-   - Create benchmark suite for graph vs. vector performance
-   - Implement eval metrics for retrieval quality
-   - Add regression tests for context assembly
-   - Build dashboard UI for latency visualization
-   - Implement automated latency testing
-
-#### Dependencies
-
-- Existing retrieval system in `src/knowledge/retriever.py`
-- Card and rule data in `data/cards.json` and `data/rules.json`
-- Inference pipeline in `src/inference/pipeline.py`
-- New monitoring and metrics infrastructure
-
-#### Resource Requirements
-
-- Development: 1 software engineer, 2.5 weeks (increased from 2 weeks)
-- Testing: Limited GPU requirements (can use CPU for most testing)
-- Integration testing will require dual GPU setup
-- Metrics storage: Redis or similar for metrics persistence
-
-#### Success Metrics
-
-- 25% improvement in correctly applying complex rules
-- Successful handling of multi-hop knowledge queries
-- 30% reduction in irrelevant context elements
-- 99% of queries completing within 200ms retrieval latency budget
-- Cache hit rate of at least 60% after warm-up period
-- Automated alerts when retrieval performance degrades
-
-### 2. Adapter Training Implementation
+### 1. Adapter Training Implementation
 
 #### Overview
 
@@ -1290,641 +782,9 @@ Expert adapters are currently loaded and managed in `src/models/expert_adapters.
    - Implement multi-GPU training options
    - Add experiment tracking
 
-   ```python
-   # New file: src/training/train_adapter.py
-   #!/usr/bin/env python
-   import argparse
-   import json
-   import os
-   import torch
-   from pathlib import Path
-
-   from src.training.adapter_dataset import ExpertDataset
-   from src.training.adapter_trainer import LoRAAdapterTrainer
-   from src.training.expert_train_configs import get_expert_config
-   from transformers import AutoTokenizer
-
-   def parse_args():
-       parser = argparse.ArgumentParser(description="Train LoRA adapter for expert")
-       parser.add_argument("--expert", type=str, required=True,
-                           help="Expert type (REASON, EXPLAIN, TEACH, PREDICT, RETROSPECT)")
-       parser.add_argument("--base-model", type=str, required=True,
-                           help="Base model path or identifier")
-       parser.add_argument("--output-dir", type=str, required=True,
-                           help="Output directory for adapter weights")
-       parser.add_argument("--config", type=str,
-                           help="Optional JSON config file to override defaults")
-       parser.add_argument("--quantization-bits", type=int, default=4,
-                           help="Quantization bits (4 or 8)")
-       parser.add_argument("--multi-gpu", action="store_true",
-                           help="Enable multi-GPU training")
-       parser.add_argument("--resume-from", type=str,
-                           help="Resume training from checkpoint")
-       return parser.parse_args()
-
-   def main():
-       args = parse_args()
-
-       # Get default configuration for expert
-       expert_config = get_expert_config(args.expert)
-
-       # Override with config file if provided
-       if args.config:
-           with open(args.config, 'r') as f:
-               override_config = json.load(f)
-               expert_config = {**expert_config, **override_config}
-
-       # Create output directory
-       os.makedirs(args.output_dir, exist_ok=True)
-
-       # Save configuration
-       with open(os.path.join(args.output_dir, "config.json"), 'w') as f:
-           json.dump({
-               "expert_type": args.expert,
-               "base_model": args.base_model,
-               "config": expert_config,
-               "quantization_bits": args.quantization_bits,
-               "multi_gpu": args.multi_gpu,
-           }, f, indent=2)
-
-       # Load tokenizer for dataset preparation
-       tokenizer = AutoTokenizer.from_pretrained(args.base_model)
-
-       # Create datasets
-       train_dataset = ExpertDataset(
-           args.expert,
-           expert_config["data_sources"],
-           tokenizer,
-           max_length=1024
-       )
-
-       # Create validation split or separate validation dataset
-       if "validation_data_sources" in expert_config:
-           eval_dataset = ExpertDataset(
-               args.expert,
-               expert_config["validation_data_sources"],
-               tokenizer,
-               max_length=1024
-           )
-       else:
-           # Split train dataset
-           train_size = int(0.9 * len(train_dataset))
-           eval_size = len(train_dataset) - train_size
-           train_dataset, eval_dataset = torch.utils.data.random_split(
-               train_dataset, [train_size, eval_size]
-           )
-
-       # Determine device map
-       device_map = "auto"
-       if args.multi_gpu:
-           # Custom mapping for multi-GPU
-           device_map = "balanced"
-
-       # Create trainer
-       trainer = LoRAAdapterTrainer(
-           base_model_path=args.base_model,
-           expert_type=args.expert,
-           output_dir=args.output_dir,
-           quantization_bits=args.quantization_bits,
-           **expert_config["training_params"]
-       )
-
-       # Setup model
-       trainer.setup(device_map=device_map)
-
-       # Resume if checkpoint provided
-       if args.resume_from:
-           print(f"Resuming training from {args.resume_from}")
-           trainer.load_checkpoint(args.resume_from)
-
-       # Train
-       trainer.train(
-           train_dataset,
-           eval_dataset,
-           num_epochs=expert_config["training_params"]["num_epochs"],
-           batch_size=expert_config["training_params"]["batch_size"]
-       )
-
-       print(f"Training complete. Adapters saved to {args.output_dir}")
-
-   if __name__ == "__main__":
-       main()
-   ```
-
 6. **Adapter-Inference Compatibility Validation** (3 days)
 
    - Develop automated validation system for adapter compatibility
    - Create test suite of representative MTG queries for each expert type
    - Implement comparison metrics between baseline and adapter-enhanced outputs
    - Add compatibility check to the adapter saving process
-   - Create validation reports with detailed metrics
-
-   ```python
-   # New file: src/training/adapter_validation.py
-   class AdapterValidator:
-       """Validator for ensuring adapter compatibility with inference pipeline."""
-
-       def __init__(self, base_model, validation_queries=None, metrics=None):
-           """
-           Initialize adapter validator.
-
-           Args:
-               base_model: Base model to use for validation
-               validation_queries: Dict of expert type to list of validation queries
-               metrics: List of metrics to use for validation
-           """
-           self.base_model = base_model
-           self.validation_queries = validation_queries or self._load_default_queries()
-           self.metrics = metrics or ["perplexity", "output_length", "completion_time"]
-           self.results_history = {}
-
-       def _load_default_queries(self):
-           """Load default validation queries from validation data."""
-           queries = {}
-           for expert_type in ["REASON", "EXPLAIN", "TEACH", "PREDICT", "RETROSPECT"]:
-               try:
-                   queries[expert_type] = self._load_expert_queries(expert_type)
-               except Exception as e:
-                   logging.warning(f"Could not load queries for {expert_type}: {e}")
-                   queries[expert_type] = []
-
-           return queries
-
-       def validate_adapter(self, adapter_path, expert_type, temperature=0.7):
-           """
-           Validate an adapter for compatibility with inference pipeline.
-
-           Args:
-               adapter_path: Path to adapter weights
-               expert_type: Expert type to validate
-               temperature: Temperature for generation
-
-           Returns:
-               Validation report with metrics
-           """
-           if expert_type not in self.validation_queries:
-               raise ValueError(f"No validation queries for expert type: {expert_type}")
-
-           queries = self.validation_queries[expert_type]
-           if not queries:
-               logging.warning(f"Empty validation set for {expert_type}")
-               return {"status": "No validation queries"}
-
-           # Get baseline results (no adapter)
-           baseline_results = self._run_validation(
-               None, expert_type, queries, temperature
-           )
-
-           # Get adapter results
-           adapter_results = self._run_validation(
-               adapter_path, expert_type, queries, temperature
-           )
-
-           # Compare results
-           comparison = self._compare_results(baseline_results, adapter_results)
-
-           # Store in history
-           self.results_history[adapter_path] = {
-               "timestamp": datetime.datetime.now().isoformat(),
-               "expert_type": expert_type,
-               "baseline": baseline_results["summary"],
-               "adapter": adapter_results["summary"],
-               "comparison": comparison["summary"]
-           }
-
-           # Generate comprehensive report
-           report = {
-               "adapter_path": adapter_path,
-               "expert_type": expert_type,
-               "validation_queries": len(queries),
-               "timestamp": datetime.datetime.now().isoformat(),
-               "baseline": baseline_results,
-               "adapter": adapter_results,
-               "comparison": comparison,
-               "compatibility_assessment": self._assess_compatibility(comparison)
-           }
-
-           return report
-
-       def _run_validation(self, adapter_path, expert_type, queries, temperature):
-           """Run validation queries through model with or without adapter."""
-           results = {
-               "individual": [],
-               "summary": {}
-           }
-
-           # Setup model (with or without adapter)
-           model = self._setup_model(adapter_path)
-
-           metrics_values = {metric: [] for metric in self.metrics}
-
-           # Run each query
-           for query in queries:
-               start_time = time.time()
-
-               # Generate response
-               with torch.no_grad():
-                   output = self._generate_response(
-                       model, query, temperature=temperature
-                   )
-
-               # Calculate metrics
-               query_result = {
-                   "query": query,
-                   "response": output,
-                   "metrics": {}
-               }
-
-               # Time
-               completion_time = time.time() - start_time
-               query_result["metrics"]["completion_time"] = completion_time
-               metrics_values["completion_time"].append(completion_time)
-
-               # Length
-               output_length = len(output.split())
-               query_result["metrics"]["output_length"] = output_length
-               metrics_values["output_length"].append(output_length)
-
-               # Perplexity
-               if "perplexity" in self.metrics:
-                   perplexity = self._calculate_perplexity(model, query, output)
-                   query_result["metrics"]["perplexity"] = perplexity
-                   metrics_values["perplexity"].append(perplexity)
-
-               results["individual"].append(query_result)
-
-           # Calculate summary statistics
-           for metric in self.metrics:
-               values = metrics_values[metric]
-               if not values:
-                   continue
-
-               results["summary"][metric] = {
-                   "mean": sum(values) / len(values),
-                   "min": min(values),
-                   "max": max(values),
-                   "std": statistics.stdev(values) if len(values) > 1 else 0
-               }
-
-           return results
-
-       def _compare_results(self, baseline_results, adapter_results):
-           """Compare baseline and adapter results."""
-           comparison = {
-               "metrics": {},
-               "summary": {}
-           }
-
-           # Compare each metric
-           for metric in self.metrics:
-               if metric not in baseline_results["summary"] or metric not in adapter_results["summary"]:
-                   continue
-
-               baseline_mean = baseline_results["summary"][metric]["mean"]
-               adapter_mean = adapter_results["summary"][metric]["mean"]
-
-               delta = adapter_mean - baseline_mean
-               delta_percent = (delta / baseline_mean * 100) if baseline_mean != 0 else float('inf')
-
-               comparison["metrics"][metric] = {
-                   "baseline_mean": baseline_mean,
-                   "adapter_mean": adapter_mean,
-                   "delta": delta,
-                   "delta_percent": delta_percent
-               }
-
-               # Interpret change (different for each metric)
-               if metric == "perplexity":
-                   # Lower is better for perplexity
-                   improvement = -delta_percent
-                   comparison["metrics"][metric]["improvement"] = improvement
-                   comparison["summary"][metric] = f"{improvement:.1f}% {'improvement' if improvement > 0 else 'regression'}"
-               elif metric == "completion_time":
-                   # Lower is better for time
-                   improvement = -delta_percent
-                   comparison["metrics"][metric]["improvement"] = improvement
-                   comparison["summary"][metric] = f"{improvement:.1f}% {'faster' if improvement > 0 else 'slower'}"
-               elif metric == "output_length":
-                   # Report change but don't judge
-                   comparison["summary"][metric] = f"{delta_percent:.1f}% {'longer' if delta_percent > 0 else 'shorter'}"
-
-           return comparison
-
-       def _assess_compatibility(self, comparison):
-           """Assess overall compatibility based on comparison results."""
-           issues = []
-           warnings = []
-
-           # Check for severe regressions
-           if "perplexity" in comparison["metrics"]:
-               perplexity_improvement = comparison["metrics"]["perplexity"]["improvement"]
-               if perplexity_improvement < -50:
-                   issues.append(f"Severe perplexity regression: {-perplexity_improvement:.1f}%")
-               elif perplexity_improvement < -20:
-                   warnings.append(f"Moderate perplexity regression: {-perplexity_improvement:.1f}%")
-
-           if "completion_time" in comparison["metrics"]:
-               time_improvement = comparison["metrics"]["completion_time"]["improvement"]
-               if time_improvement < -100:
-                   issues.append(f"Severe slowdown: {-time_improvement:.1f}%")
-               elif time_improvement < -50:
-                   warnings.append(f"Moderate slowdown: {-time_improvement:.1f}%")
-
-           # Overall assessment
-           if issues:
-               status = "INCOMPATIBLE"
-               reason = "; ".join(issues)
-           elif warnings:
-               status = "COMPATIBLE WITH WARNINGS"
-               reason = "; ".join(warnings)
-           else:
-               status = "COMPATIBLE"
-               reason = "No compatibility issues detected"
-
-           return {
-               "status": status,
-               "reason": reason,
-               "issues": issues,
-               "warnings": warnings
-           }
-   ```
-
-7. **Early Stopping Implementation** (2 days)
-
-   - Add early stopping based on validation metrics to optimize training time
-   - Implement configurable patience parameter and stopping criteria
-   - Ensure proper checkpoint management to preserve best models
-   - Add reporting on training efficiency gains from early stopping
-
-   ```python
-   # Add to src/training/adapter_trainer.py
-   class EarlyStoppingHandler:
-       """Handles early stopping during training."""
-
-       def __init__(
-           self,
-           patience=3,
-           min_delta=0.0001,
-           metric="loss",
-           mode="min",
-           baseline=None,
-           min_steps=500
-       ):
-           """
-           Initialize early stopping handler.
-
-           Args:
-               patience: Number of checks with no improvement before stopping
-               min_delta: Minimum change to qualify as improvement
-               metric: Metric to monitor for stopping decision
-               mode: 'min' if lower is better, 'max' if higher is better
-               baseline: Optional baseline to compare against
-               min_steps: Minimum steps before allowing early stopping
-           """
-           self.patience = patience
-           self.min_delta = min_delta
-           self.metric = metric
-           self.mode = mode
-           self.baseline = baseline
-           self.min_steps = min_steps
-
-           # State tracking
-           self.best_value = float('inf') if mode == "min" else -float('inf')
-           self.best_step = 0
-           self.counter = 0
-           self.stopped_early = False
-           self.steps_without_improvement = 0
-           self.history = []
-
-       def __call__(self, value, step, model, save_path=None):
-           """
-           Check if training should stop early.
-
-           Args:
-               value: Current value of the monitored metric
-               step: Current training step
-               model: Model to save if this is the best checkpoint
-               save_path: Where to save the best model
-
-           Returns:
-               True if training should stop, False otherwise
-           """
-           if step < self.min_steps:
-               # Don't stop before minimum steps
-               return False
-
-           # Track history
-           self.history.append((step, value))
-
-           # Check for improvement
-           improved = False
-           if self.mode == "min":
-               if value <= self.best_value - self.min_delta:
-                   improved = True
-           else:  # mode == "max"
-               if value >= self.best_value + self.min_delta:
-                   improved = True
-
-           if improved:
-               # Reset counter and update best value
-               self.counter = 0
-               self.best_value = value
-               self.best_step = step
-               self.steps_without_improvement = 0
-
-               # Save best model if path provided
-               if save_path and model:
-                   os.makedirs(os.path.dirname(save_path), exist_ok=True)
-                   model.save_pretrained(f"{save_path}_best")
-           else:
-               self.counter += 1
-               self.steps_without_improvement += 1
-
-           # Check if patience exceeded
-           if self.counter >= self.patience:
-               self.stopped_early = True
-               return True
-
-           return False
-
-       def get_status(self):
-           """Get current early stopping status."""
-           if not self.history:
-               return {"status": "No steps recorded"}
-
-           return {
-               "best_value": self.best_value,
-               "best_step": self.best_step,
-               "current_counter": self.counter,
-               "patience": self.patience,
-               "steps_without_improvement": self.steps_without_improvement,
-               "stopped_early": self.stopped_early,
-               "training_efficiency": self._calculate_efficiency()
-           }
-
-       def _calculate_efficiency(self):
-           """Calculate training efficiency from early stopping."""
-           if not self.stopped_early or not self.history:
-               return None
-
-           total_steps = self.history[-1][0]
-           saved_steps = total_steps - self.best_step
-
-           if total_steps == 0:
-               return 0
-
-           return {
-               "total_steps": total_steps,
-               "best_step": self.best_step,
-               "saved_steps": saved_steps,
-               "efficiency_gain_percent": (saved_steps / total_steps) * 100
-           }
-   ```
-
-8. **Adapter Loading and Evaluation** (3 days)
-
-   - Extend `src/models/expert_adapters.py` with training result loading
-   - Add evaluation functions for adapters
-   - Implement A/B testing between adapter versions
-   - Create dashboard for adapter performance metrics
-   - Add compatibility validation integration
-
-   ```python
-   # Add to src/models/expert_adapters.py
-
-   def evaluate_adapter(
-       self,
-       expert_type,
-       evaluation_dataset=None,
-       evaluation_metrics=None
-   ):
-       """
-       Evaluate a specific adapter's performance.
-
-       Args:
-           expert_type: Expert type to evaluate
-           evaluation_dataset: Dataset for evaluation
-           evaluation_metrics: List of metrics to evaluate
-
-       Returns:
-           Dictionary of metrics and their values
-       """
-       # Ensure adapter is loaded
-       if expert_type not in self.loaded_adapters:
-           self.load_expert_adapter(expert_type)
-
-       # Apply adapter
-       adapter_path = self.get_adapter_path(expert_type)
-       self.model.load_adapter(adapter_path)
-
-       # Prepare metrics
-       if evaluation_metrics is None:
-           # Get default metrics for this expert type
-           from src.training.expert_train_configs import get_expert_config
-           expert_config = get_expert_config(expert_type)
-           evaluation_metrics = expert_config["eval_metrics"]
-
-       # Prepare dataset
-       if evaluation_dataset is None:
-           # Use default evaluation dataset
-           from src.evaluation.test_cases import get_test_cases
-           evaluation_dataset = get_test_cases(expert_type)
-
-       # Run evaluation
-       results = {}
-       self.model.eval()
-       with torch.no_grad():
-           for metric in evaluation_metrics:
-               metric_fn = get_metric_fn(metric)
-               score = metric_fn(self.model, self.tokenizer, evaluation_dataset)
-               results[metric] = score
-
-       return results
-
-   def compare_adapters(
-       self,
-       expert_type,
-       adapter_path_a,
-       adapter_path_b,
-       evaluation_dataset=None
-   ):
-       """
-       Compare two versions of the same adapter.
-
-       Args:
-           expert_type: Expert type to evaluate
-           adapter_path_a: Path to first adapter
-           adapter_path_b: Path to second adapter
-           evaluation_dataset: Dataset for evaluation
-
-       Returns:
-           Dictionary comparing metrics between adapters
-       """
-       # Evaluate first adapter
-       original_path = self.expert_adapter_paths.get(expert_type)
-
-       # Temporarily set to adapter A
-       self.expert_adapter_paths[expert_type] = adapter_path_a
-       results_a = self.evaluate_adapter(expert_type, evaluation_dataset)
-
-       # Temporarily set to adapter B
-       self.expert_adapter_paths[expert_type] = adapter_path_b
-       results_b = self.evaluate_adapter(expert_type, evaluation_dataset)
-
-       # Restore original
-       if original_path:
-           self.expert_adapter_paths[expert_type] = original_path
-       else:
-           del self.expert_adapter_paths[expert_type]
-
-       # Compare results
-       comparison = {
-           "adapter_a": adapter_path_a,
-           "adapter_b": adapter_path_b,
-           "metrics": {}
-       }
-
-       for metric in results_a:
-           if metric in results_b:
-               delta = results_b[metric] - results_a[metric]
-               delta_percent = delta / results_a[metric] * 100 if results_a[metric] != 0 else float('inf')
-               comparison["metrics"][metric] = {
-                   "adapter_a": results_a[metric],
-                   "adapter_b": results_b[metric],
-                   "absolute_change": delta,
-                   "percent_change": delta_percent
-               }
-
-       return comparison
-   ```
-
-9. **Documentation and Integration Testing** (2 days)
-   - Create detailed training documentation
-   - Update integration tests for adapter loading
-   - Implement testing framework for all training components
-   - Create examples and tutorials
-   - Document mixed precision and compatibility workflows
-
-#### Dependencies
-
-- Existing adapter management in `src/models/expert_adapters.py`
-- Training data (to be prepared as part of this task)
-- PyTorch and Transformers libraries
-- Apex for mixed precision training optimizations
-
-#### Resource Requirements
-
-- Development: 1 software engineer, 3 weeks (increased from 2.5 weeks)
-- Training: Dual 16GB GPUs for adapter training
-- Storage: ~5GB for training data and adapter checkpoints
-- Evaluation: Test suite for compatibility validation (~500MB)
-
-#### Success Metrics
-
-- Successful training of all 5 expert adapters with mixed precision support
-- Adapters show measurable improvement over base model (at least 15% perplexity reduction)
-- Performance tests show <5% memory overhead during inference
-- Training time reduced by at least 30% with mixed precision
-- 100% adapter-inference compatibility with production pipeline
-- Training process well-documented and repeatable
-- Early stopping reduces average training time by 20%
