@@ -41,7 +41,7 @@ def mock_past_key_values():
 
 def test_cache_initialization(kv_cache_manager):
     """Test that the cache manager initializes correctly"""
-    assert kv_cache_manager.max_memory_percentage == 0.2
+    assert kv_cache_manager.max_memory_percentage == pytest.approx(0.2)
     assert kv_cache_manager.sliding_window == 512
     assert kv_cache_manager.current_cache_size == 0
 
@@ -90,7 +90,7 @@ def test_generation_kwargs(kv_cache_manager):
 
     # Original kwargs should be preserved
     assert enhanced["max_new_tokens"] == 100
-    assert enhanced["temperature"] == 0.7
+    assert enhanced["temperature"] == pytest.approx(0.7)
 
     # Our enhancements should be added
     assert "sliding_window" in enhanced

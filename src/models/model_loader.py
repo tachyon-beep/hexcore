@@ -12,9 +12,119 @@ from peft.utils.other import prepare_model_for_kbit_training
 import bitsandbytes as bnb
 from typing import Dict, Tuple, Optional, Any, Union
 import os
+import gc
 import logging
+import time
+
+# Import our memory management utilities
+from src.utils.memory_management import (
+    clear_gpu_memory,
+    log_gpu_memory_stats,
+    optimize_for_inference,
+    load_with_progressive_offloading,
+)
 
 logger = logging.getLogger(__name__)
+
+# Set memory optimization environment variables at the module level
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64,expandable_segments:True"
+
+
+def force_complete_gpu_reset():
+    """Force a complete GPU memory reset and garbage collection."""
+    import gc
+    import torch
+    import time
+
+    # Run multiple garbage collection cycles
+    for _ in range(3):
+        gc.collect()
+
+    # Reset CUDA for each device
+    if torch.cuda.is_available():
+        # Synchronize all devices to ensure pending operations complete
+        for i in range(torch.cuda.device_count()):
+            torch.cuda.synchronize(i)
+
+        # Empty cache multiple times
+        for _ in range(2):
+            torch.cuda.empty_cache()
+
+        # Reset statistics tracking
+        for i in range(torch.cuda.device_count()):
+            try:
+                torch.cuda.reset_peak_memory_stats(i)
+                torch.cuda.reset_accumulated_memory_stats(i)
+            except AttributeError:
+                pass  # Not all PyTorch versions have these
+
+        # Small pause to let OS catch up with memory release
+        time.sleep(0.5)
+
+    # Set aggressive memory management parameters
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = (
+        "max_split_size_mb:32,expandable_segments:True"
+    )
+
+    # One final garbage collection
+    gc.collect()
+
+
+def _load_model_with_memory_optimizations(
+    model_id: str,
+    model_kwargs: Dict[str, Any],
+    use_progressive_loading: bool = True,
+) -> torch.nn.Module:
+    """
+    Internal function to load a model with optimized memory handling.
+
+    Args:
+        model_id: Hugging Face model ID
+        model_kwargs: Dictionary of keyword arguments for model loading
+        use_progressive_loading: Whether to use progressive loading with memory management
+
+    Returns:
+        Loaded model
+    """
+    # Set up memory optimizations
+    optimize_for_inference()
+
+    # Make sure expandable segments are enabled in PyTorch
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = (
+        "max_split_size_mb:64,expandable_segments:True"
+    )
+
+    # Log memory state before loading
+    logger.info("Memory state before model loading:")
+    log_gpu_memory_stats()
+
+    # Clear GPU memory before loading
+    clear_gpu_memory()
+
+    if use_progressive_loading:
+        # Define internal loading function for progressive loading
+        def _internal_load():
+            return AutoModelForCausalLM.from_pretrained(model_id, **model_kwargs)
+
+        # Use progressive loading with memory management
+        try:
+            logger.info("Using progressive loading with memory optimizations")
+            model = load_with_progressive_offloading(_internal_load)
+        except Exception as e:
+            logger.error(f"Progressive loading failed: {e}")
+            # Fall back to regular loading as a last resort
+            logger.info("Falling back to regular loading")
+            clear_gpu_memory()
+            model = AutoModelForCausalLM.from_pretrained(model_id, **model_kwargs)
+    else:
+        # Use regular loading with basic memory optimizations
+        model = AutoModelForCausalLM.from_pretrained(model_id, **model_kwargs)
+
+    # Log memory state after loading
+    logger.info("Memory state after model loading:")
+    log_gpu_memory_stats()
+
+    return model
 
 
 def load_quantized_model(
@@ -25,9 +135,10 @@ def load_quantized_model(
     use_safetensors: bool = True,
     offload_folder: Optional[str] = None,
     force_device_map: bool = False,
+    use_memory_optimizations: bool = True,
 ) -> Tuple[torch.nn.Module, Union[PreTrainedTokenizer, PreTrainedTokenizerFast]]:
     """
-    Load a quantized version of the specified model.
+    Load a quantized version of the specified model with memory optimizations.
 
     Args:
         model_id: Hugging Face model ID
@@ -37,21 +148,66 @@ def load_quantized_model(
         use_safetensors: Whether to use safetensors for loading
         offload_folder: Folder to offload model weights to, if needed
         force_device_map: Force the use of the supplied device_map even if it's incompatible
+        use_memory_optimizations: Whether to use enhanced memory optimizations
 
     Returns:
         Tuple of (model, tokenizer)
     """
+    # Start with a complete memory reset
+    force_complete_gpu_reset()
+
     logger.info(f"Loading model {model_id} with {quantization_type} quantization")
 
-    # Load tokenizer
+    # Load tokenizer first (lightweight)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
 
-    # Configure loading parameters based on quantization type
-    model_kwargs = {}
+    # Set up conservative memory usage limits from the start
+    # Calculate safe memory limits for each device
+    max_memory = {}
+    for i in range(torch.cuda.device_count()):
+        props = torch.cuda.get_device_properties(i)
+        total_mem_gb = props.total_memory / (1024**3)
+        # Leave a safe buffer of 1GB on each device
+        safe_mem_gb = total_mem_gb - 1.0
+        # Ensure we don't go negative
+        safe_mem_gb = max(safe_mem_gb, total_mem_gb * 0.7)
+        max_memory[i] = f"{safe_mem_gb:.1f}GiB"
 
-    # Set default compute dtype if None is specified
-    if compute_dtype is None:
-        compute_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+    # Always allow CPU offloading as a safety valve
+    max_memory["cpu"] = "4GiB"
+
+    # Build model kwargs with conservative settings
+    model_kwargs = {
+        "device_map": "auto",  # Start with auto mapping for safety
+        "max_memory": max_memory,
+        "torch_dtype": compute_dtype if compute_dtype else torch.float16,
+        "use_safetensors": use_safetensors,
+        "low_cpu_mem_usage": True,
+    }
+
+    # Apply quantization settings
+    if quantization_type == "4bit":
+        logger.info("Using 4-bit quantization with conservative memory settings")
+        model_kwargs["quantization_config"] = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=compute_dtype or torch.float16,
+            bnb_4bit_use_double_quant=True,
+        )
+    elif quantization_type == "8bit":
+        logger.info("Using 8-bit quantization with conservative memory settings")
+        model_kwargs["quantization_config"] = BitsAndBytesConfig(
+            load_in_8bit=True,
+            llm_int8_use_double_quant=True,
+        )
+
+    # If a custom device map was provided and forced, use it instead
+    if isinstance(device_map, dict) and force_device_map:
+        logger.info("Using forced custom device map")
+        model_kwargs["device_map"] = device_map
+        # Remove max_memory constraint when using custom mapping
+        if "max_memory" in model_kwargs:
+            del model_kwargs["max_memory"]
 
     # Convert quantization type to bits for DeviceMapper
     quantization_bits = None
@@ -77,107 +233,18 @@ def load_quantized_model(
             quantization_bits=quantization_bits
         )
         logger.info("Created optimized device map with memory balancing")
+        model_kwargs["device_map"] = device_map
 
-    # CPU offload should be automatically avoided with our device map in 4-bit mode
-    # but let's verify anyway
-    has_cpu_offload = False
-    if isinstance(device_map, dict):
-        has_cpu_offload = any(
-            str(device).lower() == "cpu" for device in device_map.values()
-        )
-
-        # Warn if CPU offloading with 4-bit quantization (which can cause errors)
-        if has_cpu_offload and quantization_type == "4bit" and not force_device_map:
-            logger.warning(
-                "CPU offloading detected with 4-bit quantization, which is incompatible. "
-                "Switching to optimized device mapping."
-            )
-            from src.utils.device_mapping import DeviceMapper
-
-            # Create device mapper with correct settings for model type
-            from transformers import AutoConfig
-
-            model_config = AutoConfig.from_pretrained(model_id)
-            num_layers = getattr(model_config, "num_hidden_layers", 32)
-            num_experts = getattr(model_config, "num_local_experts", 8)
-
-            device_mapper = DeviceMapper(num_experts=num_experts, num_layers=num_layers)
-            device_map = device_mapper.create_mixtral_device_map(
-                quantization_bits=quantization_bits
-            )
-            has_cpu_offload = False  # Updated - no CPU offload in optimized map
-
-    # Set the device map
-    model_kwargs["device_map"] = device_map
-
-    # Add safetensors option
-    model_kwargs["use_safetensors"] = use_safetensors
-
-    # Add offload folder if specified
-    if offload_folder:
-        model_kwargs["offload_folder"] = offload_folder
-
-    # Set memory-efficient configuration via environment variables
-    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = (
-        "max_split_size_mb:128,expandable_segments:True"
-    )
-
-    # Handle quantization
-    if quantization_type == "4bit":
-        logger.info("Using 4-bit quantization")
-        # Set up 4-bit quantization config with explicit dtype settings
-        model_kwargs["quantization_config"] = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",  # NF4 provides better quality than int4 for LLMs
-            bnb_4bit_compute_dtype=compute_dtype,
-            bnb_4bit_use_double_quant=True,  # Double quantization for additional memory savings
-            # Disable CPU offloading for 4-bit as it's problematic
-            bnb_4bit_enable_cpu_offload=False,
-        )
-
-        # Always enable low CPU memory usage for large models
-        model_kwargs["low_cpu_mem_usage"] = True
-
-    elif quantization_type == "8bit":
-        logger.info("Using 8-bit quantization")
-        # Set up 8-bit quantization config with explicit CPU offloading setting
-        model_kwargs["quantization_config"] = BitsAndBytesConfig(
-            load_in_8bit=True,
-            # Use FP32 for CPU operations, important for quantization
-            llm_int8_enable_fp32_cpu_offload=has_cpu_offload,
-            llm_int8_skip_modules=None,  # Don't skip any modules
-            llm_int8_threshold=6.0,  # Default threshold
-            llm_int8_has_fp16_weight=False,  # Don't use FP16 weights
-            llm_int8_use_double_quant=True,  # Enable double quantization for 8-bit too
-        )
-
-        # Always enable low CPU memory usage for large models
-        model_kwargs["low_cpu_mem_usage"] = True
-    else:
-        logger.info(f"Using no quantization, with dtype {compute_dtype}")
-        # For no quantization, just set dtype explicitly
-        model_kwargs["torch_dtype"] = compute_dtype
-
-    # Load model with appropriate parameters
+    # Attempt to load the model with a single, controlled strategy
+    logger.info(f"Loading model with kwargs: {model_kwargs}")
     try:
         model = AutoModelForCausalLM.from_pretrained(model_id, **model_kwargs)
         logger.info("Model loaded successfully")
-    except RuntimeError as e:
-        # Handle potential tensor device mismatch errors
-        if "Tensor for" in str(e) and "was on device" in str(e):
-            logger.error(f"Device mismatch error during loading: {e}")
-            if not force_device_map:
-                logger.info("Trying again with simplified device map")
-                # Simplify to balanced device map as fallback
-                model_kwargs["device_map"] = "balanced"
-                model = AutoModelForCausalLM.from_pretrained(model_id, **model_kwargs)
-                logger.info("Model loaded successfully with simplified device map")
-            else:
-                # Re-raise the error if forcing the provided device map
-                raise
-        else:
-            # Re-raise other errors
-            raise
+    except Exception as e:
+        logger.error(f"Error loading model: {e}")
+        # Clean up before raising the exception
+        force_complete_gpu_reset()
+        raise
 
     return model, tokenizer
 

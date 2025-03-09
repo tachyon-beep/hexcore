@@ -21,6 +21,9 @@ class ExpertAdapterManager:
     memory optimization through aggressive offloading and LRU caching.
     """
 
+    # Device constants
+    CUDA0 = "cuda:0"
+
     def __init__(
         self, base_model, adapters_dir: str = "adapters", max_gpu_experts: int = 2
     ):
@@ -270,7 +273,7 @@ class ExpertAdapterManager:
             except (StopIteration, AttributeError):
                 # If base_model has no parameters or is not a Module
                 if torch.cuda.is_available():
-                    device = torch.device("cuda:0")
+                    device = torch.device(self.CUDA0)
                 else:
                     device = torch.device("cpu")
                     logger.warning("No CUDA available, using CPU for adapter")
@@ -510,14 +513,14 @@ class ExpertAdapterManager:
                     # Move to GPU
                     model = self.expert_adapters[expert_type]
                     if torch.cuda.is_available():
-                        device = torch.device("cuda:0")
+                        device = torch.device(self.CUDA0)
                         model = model.to(device)
                         self.expert_adapters[expert_type] = model
                 else:
                     # Load from disk
                     adapter_path = os.path.join(self.adapters_dir, expert_type.lower())
                     if torch.cuda.is_available():
-                        device = torch.device("cuda:0")
+                        device = torch.device(self.CUDA0)
                         with torch.device(device):
                             model = PeftModel.from_pretrained(
                                 self.base_model, adapter_path, torch_dtype=torch.float16

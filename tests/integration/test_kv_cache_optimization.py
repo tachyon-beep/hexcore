@@ -169,7 +169,7 @@ def test_compare_memory_with_and_without_cache_manager(prepared_pipeline):
 
     # Stop tracking
     memory_tracker.stop_monitoring()
-    gpu_usage_without, cpu_usage_without = memory_tracker.get_max_memory_usage()
+    gpu_usage_without, _ = memory_tracker.get_max_memory_usage()
 
     # Test 2: With Optimized Cache Manager
     # Create optimized cache manager with scaled parameters for low memory
@@ -199,7 +199,7 @@ def test_compare_memory_with_and_without_cache_manager(prepared_pipeline):
 
     # Stop tracking
     memory_tracker.stop_monitoring()
-    gpu_usage_with, cpu_usage_with = memory_tracker.get_max_memory_usage()
+    gpu_usage_with, _ = memory_tracker.get_max_memory_usage()
 
     # Print comparison
     print("Memory Usage Comparison:")

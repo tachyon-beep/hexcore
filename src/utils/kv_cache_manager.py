@@ -95,6 +95,53 @@ class KVCacheManager:
 
         logger.debug("KV cache cleared")
 
+    def _get_sequence_length(self, past_key_values: Any) -> Optional[int]:
+        """
+        Get the current sequence length from past_key_values.
+
+        Args:
+            past_key_values: The current past_key_values tuple from the model
+
+        Returns:
+            Sequence length or None if it can't be determined
+        """
+        if not past_key_values or not isinstance(past_key_values, tuple):
+            return None
+
+        if len(past_key_values) > 0 and len(past_key_values[0]) >= 2:
+            return past_key_values[0][0].size(2)  # Size of seq dimension in K
+
+        return None
+
+    def _apply_pruning_strategy(self, past_key_values: Any, keep_tokens: int) -> Any:
+        """
+        Apply pruning to keep only the specified number of tokens.
+
+        Args:
+            past_key_values: The current past_key_values tuple
+            keep_tokens: Number of tokens to keep
+
+        Returns:
+            Pruned past_key_values
+        """
+        pruned_past_key_values = []
+
+        for layer_past in past_key_values:
+            pruned_layer_past = []
+            for i, tensor in enumerate(layer_past):
+                # For key and value tensors, keep only the last keep_tokens
+                if i < 2:  # Key and value tensors
+                    pruned_tensor = tensor[:, :, -keep_tokens:, :]
+                else:  # Any other tensors
+                    pruned_tensor = tensor
+                pruned_layer_past.append(pruned_tensor)
+            pruned_past_key_values.append(tuple(pruned_layer_past))
+
+        # Update our tracking
+        self.current_cache_size = keep_tokens
+
+        return tuple(pruned_past_key_values)
+
     def prune_cache(self, past_key_values: Any) -> Any:
         """
         Prune the cache to stay within memory limits by implementing cache strategies.
@@ -112,69 +159,26 @@ class KVCacheManager:
         if past_key_values is None or not isinstance(past_key_values, tuple):
             return past_key_values
 
-        # Check if we need to prune based on sequence length
-        if self.max_seq_length is not None or self.sliding_window is not None:
-            # Determine the current sequence length
-            # This assumes the standard format for past_key_values from transformer models
-            if len(past_key_values) > 0 and len(past_key_values[0]) >= 2:
-                seq_length = past_key_values[0][0].size(2)  # Size of seq dimension in K
+        # Get current sequence length
+        seq_length = self._get_sequence_length(past_key_values)
+        if seq_length is None:
+            return past_key_values
 
-                # Apply sliding window if configured
-                if self.sliding_window is not None and seq_length > self.sliding_window:
-                    # Keep only the last window_size tokens
-                    window_size = self.sliding_window
-                    logger.debug(
-                        f"Pruning KV cache using sliding window: {seq_length} -> {window_size}"
-                    )
+        # Apply sliding window if configured and needed
+        if self.sliding_window is not None and seq_length > self.sliding_window:
+            logger.debug(
+                f"Pruning KV cache using sliding window: {seq_length} -> {self.sliding_window}"
+            )
+            return self._apply_pruning_strategy(past_key_values, self.sliding_window)
 
-                    # Create pruned past_key_values
-                    pruned_past_key_values = []
-                    for layer_past in past_key_values:
-                        pruned_layer_past = []
-                        for i, tensor in enumerate(layer_past):
-                            # For key and value tensors, keep only the last window_size tokens
-                            if i < 2:  # Key and value tensors
-                                pruned_tensor = tensor[:, :, -window_size:, :]
-                            else:  # Any other tensors (though standard past_key_values has only K,V)
-                                pruned_tensor = tensor
-                            pruned_layer_past.append(pruned_tensor)
-                        pruned_past_key_values.append(tuple(pruned_layer_past))
+        # Apply max sequence length if configured and needed
+        if self.max_seq_length is not None and seq_length > self.max_seq_length:
+            logger.debug(
+                f"Pruning KV cache using max seq length: {seq_length} -> {self.max_seq_length}"
+            )
+            return self._apply_pruning_strategy(past_key_values, self.max_seq_length)
 
-                    # Update our tracking
-                    self.current_cache_size = window_size
-
-                    return tuple(pruned_past_key_values)
-
-                # Apply max sequence length if configured
-                elif (
-                    self.max_seq_length is not None and seq_length > self.max_seq_length
-                ):
-                    # Keep only the last max_seq_length tokens
-                    keep_length = self.max_seq_length
-                    logger.debug(
-                        f"Pruning KV cache using max seq length: {seq_length} -> {keep_length}"
-                    )
-
-                    # Create pruned past_key_values
-                    pruned_past_key_values = []
-                    for layer_past in past_key_values:
-                        pruned_layer_past = []
-                        for i, tensor in enumerate(layer_past):
-                            if i < 2:  # Key and value tensors
-                                pruned_tensor = tensor[:, :, -keep_length:, :]
-                            else:
-                                pruned_tensor = tensor
-                            pruned_layer_past.append(pruned_tensor)
-                        pruned_past_key_values.append(tuple(pruned_layer_past))
-
-                    # Update our tracking
-                    self.current_cache_size = keep_length
-
-                    return tuple(pruned_past_key_values)
-
-        # More advanced pruning strategies could be implemented here
-        # For example, pruning based on attention scores to keep tokens that are more relevant
-
+        # No pruning needed
         return past_key_values
 
     def get_generation_kwargs(self, **existing_kwargs) -> Dict[str, Any]:
@@ -205,6 +209,52 @@ class KVCacheManager:
 
         return kwargs
 
+    def _calculate_cache_memory(self, past_key_values: Any) -> Tuple[int, float]:
+        """
+        Calculate the memory usage of the KV cache.
+
+        Args:
+            past_key_values: Current past_key_values from the model
+
+        Returns:
+            Tuple of (total_bytes, megabytes)
+        """
+        total_cache_memory = 0
+
+        for layer_past in past_key_values:
+            for tensor in layer_past:
+                # Get tensor size in bytes
+                tensor_memory = tensor.nelement() * tensor.element_size()
+                total_cache_memory += tensor_memory
+
+        # Convert to MB for readability
+        cache_memory_mb = total_cache_memory / (1024 * 1024)
+
+        return total_cache_memory, cache_memory_mb
+
+    def _check_memory_limits(self, total_memory: int) -> bool:
+        """
+        Check if the cache is approaching memory limits.
+
+        Args:
+            total_memory: Total memory usage in bytes
+
+        Returns:
+            True if approaching limits, False otherwise
+        """
+        for gpu_idx, max_mem in self.max_memory.items():
+            if total_memory <= max_mem * self.prune_threshold:
+                continue
+
+            device_str = f"cuda:{gpu_idx}"
+            if not self.device_map:
+                return True
+
+            if any(device == device_str for device in self.device_map.values()):
+                return True
+
+        return False
+
     def monitor_cache_growth(self, past_key_values: Any) -> Dict[str, Any]:
         """
         Monitor KV cache growth during generation and return stats.
@@ -215,54 +265,48 @@ class KVCacheManager:
         Returns:
             Dictionary with cache size statistics
         """
-        stats = {}
-
         if past_key_values is None:
             return {"seq_length": 0, "estimated_memory_mb": 0}
 
         try:
-            # Get sequence length from the first layer's key tensor
-            if len(past_key_values) > 0 and len(past_key_values[0]) >= 2:
-                seq_length = past_key_values[0][0].size(2)  # Size of seq dimension in K
+            # Get sequence length
+            seq_length = self._get_sequence_length(past_key_values)
+            if seq_length is None:
+                return {"seq_length": 0, "estimated_memory_mb": 0}
 
-                # Update tracking
-                self.current_cache_size = seq_length
+            # Update tracking
+            self.current_cache_size = seq_length
 
-                # Estimate memory usage of the KV cache
-                total_cache_memory = 0
-                for layer_idx, layer_past in enumerate(past_key_values):
-                    for tensor in layer_past:
-                        # Get tensor size in bytes
-                        tensor_memory = tensor.nelement() * tensor.element_size()
-                        total_cache_memory += tensor_memory
+            # Calculate memory usage
+            total_cache_memory, cache_memory_mb = self._calculate_cache_memory(
+                past_key_values
+            )
 
-                # Convert to MB for readability
-                cache_memory_mb = total_cache_memory / (1024 * 1024)
+            # Create stats dictionary
+            stats = {
+                "seq_length": seq_length,
+                "estimated_memory_mb": cache_memory_mb,
+                "total_cache_bytes": total_cache_memory,
+            }
 
-                stats = {
-                    "seq_length": seq_length,
-                    "estimated_memory_mb": cache_memory_mb,
-                    "total_cache_bytes": total_cache_memory,
-                }
-
-                # Check if we're approaching memory limits
+            # Check if approaching memory limits
+            if self._check_memory_limits(total_cache_memory):
+                # Find the first GPU that's exceeding limits
                 for gpu_idx, max_mem in self.max_memory.items():
                     if total_cache_memory > max_mem * self.prune_threshold:
-                        device_str = f"cuda:{gpu_idx}"
-                        if not self.device_map or any(
-                            device == device_str for device in self.device_map.values()
-                        ):
-                            logger.warning(
-                                f"KV cache approaching memory limit on GPU {gpu_idx}: {cache_memory_mb:.1f}MB vs limit {max_mem/(1024**2):.1f}MB"
-                            )
-                            stats["near_limit"] = True
-                            break
+                        logger.warning(
+                            f"KV cache approaching memory limit on GPU {gpu_idx}: "
+                            f"{cache_memory_mb:.1f}MB vs limit {max_mem/(1024**2):.1f}MB"
+                        )
+                        break
+
+                stats["near_limit"] = True
+
+            return stats
 
         except Exception as e:
             logger.warning(f"Error monitoring KV cache growth: {e}")
-            stats = {"error": str(e)}
-
-        return stats
+            return {"error": str(e)}
 
     def should_clear_cache(self, past_key_values: Any) -> bool:
         """

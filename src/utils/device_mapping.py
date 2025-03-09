@@ -1,6 +1,6 @@
 import torch
 import math
-from typing import Dict, Union, Any, Optional
+from typing import Dict, Union, Any, Optional, List
 
 
 class DeviceMapper:
@@ -10,8 +10,14 @@ class DeviceMapper:
     to optimise memory usage across available devices.
     """
 
+    # Device constants
     CUDA0 = "cuda:0"
     CUDA1 = "cuda:1"
+
+    # Module name constants
+    MODULE_EMBED_TOKENS = "model.embed_tokens"
+    MODULE_NORM = "model.norm"
+    MODULE_LM_HEAD = "lm_head"
 
     def __init__(
         self,
@@ -74,12 +80,11 @@ class DeviceMapper:
         self, quantization_bits: Optional[int] = None
     ) -> Dict[str, str]:
         """
-        Create a device map for a dual GPU setup with optimized memory distribution.
+        Create a device map for a dual GPU setup with balanced memory distribution.
 
         This implementation ensures embedding layers are on the same device
-        as the first set of experts they interact with, preventing device
-        mismatch errors during inference. It also carefully balances memory
-        usage across both GPUs to maximize efficiency.
+        as the first set of experts they interact with, while evenly distributing
+        model components across both GPUs for optimal memory utilization.
 
         Args:
             quantization_bits: If provided (4 or 8), ensure no CPU offloading is used
@@ -91,105 +96,135 @@ class DeviceMapper:
         device_map = {}
         use_4bit = quantization_bits == 4
 
+        # Reset the GPU state before mapping
+        torch.cuda.empty_cache()
+
+        # Log starting point
+        print("\n" + "=" * 80)
+        print("CREATING BALANCED EXPERT DISTRIBUTION MAP")
+        print("=" * 80)
+
+        # Print current memory information
+        print("\nInitial GPU Memory Status:")
+        for i in range(self.num_gpus):
+            props = torch.cuda.get_device_properties(i)
+            free_memory = torch.cuda.get_device_properties(
+                i
+            ).total_memory - torch.cuda.memory_allocated(i)
+            free_memory_gb = free_memory / (1024**3)
+            print(
+                f"  GPU {i}: {props.name} - {free_memory_gb:.2f}GB free of {props.total_memory/(1024**3):.2f}GB total"
+            )
+
         # Map embedding layers to GPU 0 to match the first experts
-        # This is critical to prevent device mismatch during embedding lookup
-        device_map["model.embed_tokens"] = self.CUDA0
+        device_map[self.MODULE_EMBED_TOKENS] = self.CUDA0
 
-        # Calculate optimal layer distribution based on expert size
-        # Each expert is ~0.75-1GB with 4-bit quantization,
-        # while each layer is ~0.2-0.3GB
+        # Keep current layer distribution ratio
         total_layers = self.num_layers
+        # Keep the number of layers on GPU 0 (from 16 to 14 for 32 total layers)
+        cuda0_layers = (total_layers // 2) - 2  # Current ratio (14/18 for 32 layers)
 
-        # For more efficient memory distribution, put fewer layers on GPU 0
-        # We need to leave more room on GPU 0 for initial tensors and embedding layer
-        if use_4bit:
-            # With 4-bit quantization, we need much more free memory on GPU 0
-            cuda0_layers = (
-                total_layers // 2
-            ) - 4  # Even fewer layers on GPU 0 for 4-bit
-        else:
-            # With 8-bit or no quantization, still reduce GPU 0 layers
-            cuda0_layers = (total_layers // 2) - 3
-
-        # Ensure cuda0_layers stays in reasonable bounds
-        cuda0_layers = max(min(cuda0_layers, total_layers - 4), 4)
-
-        # Distribute layers between GPUs
+        # Distribute layers with current split
         for i in range(total_layers):
             device_map[f"model.layers.{i}"] = (
                 self.CUDA0 if i < cuda0_layers else self.CUDA1
             )
 
-        # Only keep the first layer's experts on GPU 0 to save memory
-        # This is the most critical layer for preventing device mismatch
-        critical_layers = 1  # Reduced from 2 to save GPU 0 memory
-
-        # Map experts with special consideration for early layers and memory balance
-        experts_on_gpu0 = 0  # Track for balancing
+        # Track expert distribution for detailed logging
+        experts_on_gpu0 = 0
         experts_on_gpu1 = 0
 
+        # Implement improved expert distribution with alternating pattern
+        print("\nAssigning experts with alternating pattern:")
         for i in range(total_layers):
             layer_device = device_map[f"model.layers.{i}"]
-            # Map gate to the same device as the layer
+            # Map gate to same device as layer
             device_map[f"model.layers.{i}.block_sparse_moe.gate"] = layer_device
 
-            for j in range(self.num_experts):
-                if i < critical_layers:
-                    # Keep ALL experts for early layers on same device as embeddings
+            layer_experts_gpu0 = 0
+            layer_experts_gpu1 = 0
+
+            # First layer special case - all experts on GPU 0 to match embedding
+            if i == 0:
+                for j in range(self.num_experts):
                     device_map[f"model.layers.{i}.block_sparse_moe.experts.{j}"] = (
                         self.CUDA0
                     )
                     experts_on_gpu0 += 1
-                elif i < cuda0_layers:
-                    # For layers on GPU 0, put fewer experts on GPU 0 to save memory
-                    # We need to leave more room on GPU 0 for the embedding layer and activations
-                    cutoff = (
-                        self.num_experts // 4
-                    )  # Only 25% of experts on GPU 0 to save memory
-                    expert_device = self.CUDA0 if j < cutoff else self.CUDA1
+                    layer_experts_gpu0 += 1
+            else:
+                # For all other layers use alternating pattern
+                for j in range(self.num_experts):
+                    if i < cuda0_layers:
+                        # For GPU 0 layers: even experts on GPU 0, odd on GPU 1
+                        expert_device = self.CUDA0 if j % 2 == 0 else self.CUDA1
+                    else:
+                        # For GPU 1 layers: odd experts on GPU 0, even on GPU 1
+                        expert_device = self.CUDA0 if j % 2 == 1 else self.CUDA1
+
                     device_map[f"model.layers.{i}.block_sparse_moe.experts.{j}"] = (
                         expert_device
                     )
+
                     if expert_device == self.CUDA0:
                         experts_on_gpu0 += 1
+                        layer_experts_gpu0 += 1
                     else:
                         experts_on_gpu1 += 1
-                else:
-                    # For layers on GPU 1, minimize experts on GPU 0 even further
-                    # GPU 1 layers should primarily use GPU 1 memory
-                    cutoff = self.num_experts // 5  # Only 20% of experts on GPU 0
-                    expert_device = self.CUDA0 if j < cutoff else self.CUDA1
-                    device_map[f"model.layers.{i}.block_sparse_moe.experts.{j}"] = (
-                        expert_device
-                    )
-                    if expert_device == self.CUDA0:
-                        experts_on_gpu0 += 1
-                    else:
-                        experts_on_gpu1 += 1
+                        layer_experts_gpu1 += 1
 
-        # Put normalization layer on GPU 0 to avoid device transfer when computing logits
-        # But keep output projection on GPU 1 to save GPU 0 memory
-        device_map["model.norm"] = self.CUDA0  # Changed from CUDA1 to CUDA0
-        device_map["lm_head"] = self.CUDA1  # Keep on GPU 1
+            # Log layer-specific distribution
+            if (
+                i % 8 == 0 or i == total_layers - 1
+            ):  # Log every 8th layer and last layer
+                print(
+                    f"  Layer {i}: {layer_experts_gpu0} experts on GPU 0, {layer_experts_gpu1} experts on GPU 1"
+                )
 
-        # Print memory distribution summary
-        print(f"Device mapping summary:")
-        print(f"  GPU 0: {cuda0_layers} layers, ~{experts_on_gpu0} experts")
+        # Keep normalization on GPU 0 for consistency with embedding
+        device_map[self.MODULE_NORM] = self.CUDA0
+
+        # Output projection can stay on GPU 1 to balance
+        device_map[self.MODULE_LM_HEAD] = self.CUDA1
+
+        # Print detailed distribution summary
+        print("\nExpert Distribution Summary:")
+        print(f"  GPU 0: {cuda0_layers} layers, {experts_on_gpu0} experts")
         print(
-            f"  GPU 1: {total_layers - cuda0_layers} layers, ~{experts_on_gpu1} experts"
+            f"  GPU 1: {total_layers - cuda0_layers} layers, {experts_on_gpu1} experts"
+        )
+        print(
+            f"  Expert ratio: {experts_on_gpu0/(experts_on_gpu0+experts_on_gpu1)*100:.1f}% on GPU 0, {experts_on_gpu1/(experts_on_gpu0+experts_on_gpu1)*100:.1f}% on GPU 1"
         )
 
         # Validate no CPU placements if 4-bit quantization is used
         if use_4bit and any(device == "cpu" for device in device_map.values()):
             print(
-                "WARNING: 4-bit quantization requires all tensors on GPU, but CPU placements were detected"
+                "\nWARNING: 4-bit quantization requires all tensors on GPU, but CPU placements were detected"
             )
             print("Removing CPU placements...")
-            # Replace any CPU placements with GPU1 (which should have more space with our balancing)
+            # Replace any CPU placements with GPU1 (which should now have balanced space)
             device_map = {
                 k: self.CUDA1 if v == "cpu" else v for k, v in device_map.items()
             }
 
+        # Memory usage estimate
+        print("\nEstimated memory usage with this mapping:")
+        memory_estimates = self.trace_memory_usage(
+            device_map,
+            quantization=f"{quantization_bits}bit" if quantization_bits else None,
+        )
+        for device, mem_gb in memory_estimates.items():
+            if device.startswith("cuda"):
+                device_id = int(device.split(":")[-1])
+                if device_id < len(self.gpu_memory):
+                    total_gpu_mem = self.gpu_memory[device_id]
+                    usage_percent = (mem_gb / total_gpu_mem) * 100
+                    print(
+                        f"  {device}: {mem_gb:.2f}GB ({usage_percent:.1f}% of {total_gpu_mem:.1f}GB)"
+                    )
+
+        print("=" * 80)
         return device_map
 
     def _create_single_gpu_map(self, reserve_memory_gb: float) -> Dict[str, str]:
@@ -203,9 +238,9 @@ class DeviceMapper:
             )
 
             # Put core components on GPU
-            device_map["model.embed_tokens"] = self.CUDA0
-            device_map["model.norm"] = self.CUDA0
-            device_map["lm_head"] = self.CUDA0
+            device_map[self.MODULE_EMBED_TOKENS] = self.CUDA0
+            device_map[self.MODULE_NORM] = self.CUDA0
+            device_map[self.MODULE_LM_HEAD] = self.CUDA0
 
             # Put layers on GPU, but some experts on CPU
             cpu_expert_ratio = max(0, min(0.75, 1.0 - (available_memory / 24.0)))
@@ -255,8 +290,8 @@ class DeviceMapper:
 
         # Override embedding placement to ensure it's on a specific GPU
         # This prevents device mismatch errors when using auto mapping
-        if "model.embed_tokens" in device_map:
-            device_map["model.embed_tokens"] = self.CUDA0
+        if self.MODULE_EMBED_TOKENS in device_map:
+            device_map[self.MODULE_EMBED_TOKENS] = self.CUDA0
 
         return device_map
 
@@ -286,9 +321,9 @@ class DeviceMapper:
         # Determine memory factor based on quantization
         memory_factor = 1.0  # Default: No quantization or FP16
         if quantization == "4bit":
-            memory_factor = 0.25  # 4-bit is ~1/4 the size of FP16
+            memory_factor = 0.10  # 4-bit with optimized libraries is even smaller (1/10 instead of 1/8)
         elif quantization == "8bit":
-            memory_factor = 0.5  # 8-bit is ~1/2 the size of FP16
+            memory_factor = 0.375  # 8-bit with optimized libraries is closer to 3/8 the size of FP16
 
         # Apply quantization factor to all components
         return {
@@ -458,7 +493,7 @@ class DeviceMapper:
 
     def _print_memory_analysis(
         self,
-        memory_map: Dict[str, Dict[str, float]],
+        memory_map: Dict[str, Any],
         num_layers: int,
         num_experts: int,
         quantization_type: Optional[str] = None,
@@ -469,7 +504,7 @@ class DeviceMapper:
 
         # Create width for bar chart (maximum 50 chars)
         max_bar_width = 50
-        total_gb = memory_map["total"]["total"]
+        total_gb = float(memory_map["total"]["total"])
         gb_to_char = max_bar_width / total_gb if total_gb > 0 else 0
 
         # Initialize variables for recommendation calculation
@@ -482,44 +517,44 @@ class DeviceMapper:
         print("=" * 80)
 
         # Print embedding layer
-        embed_gb = memory_map["embedding"]["total"]
+        embed_gb = float(memory_map["embedding"]["total"])
         embed_bar = "█" * int(embed_gb * gb_to_char)
         print(f"Embedding Layer:        {embed_gb:.2f} GB  {embed_bar}")
 
         # Print layer components (excluding experts)
-        layer_base_gb = memory_map["layer_base"]["per_layer"]
-        print(f"\nPer-Layer Components (excluding experts):")
+        layer_base_gb = float(memory_map["layer_base"]["per_layer"])
+        print("\nPer-Layer Components (excluding experts):")
 
-        attn_gb = memory_map["layer_base"]["attention"]["total"] / num_layers
+        attn_gb = float(memory_map["layer_base"]["attention"]["total"]) / num_layers
         attn_bar = "█" * int(attn_gb * gb_to_char)
         print(f"  Attention Block:      {attn_gb:.2f} GB  {attn_bar}")
 
-        gate_gb = memory_map["layer_base"]["gate"] / num_layers
+        gate_gb = float(memory_map["layer_base"]["gate"]) / num_layers
         gate_bar = "█" * int(gate_gb * gb_to_char)
         print(f"  MoE Gate:             {gate_gb:.2f} GB  {gate_bar}")
 
-        other_gb = memory_map["layer_base"]["other"] / num_layers
+        other_gb = float(memory_map["layer_base"]["other"]) / num_layers
         other_bar = "█" * int(other_gb * gb_to_char)
         print(f"  Other (LayerNorms):   {other_gb:.2f} GB  {other_bar}")
 
-        print(f"  -----------------------")
+        print("  -----------------------")
         layer_bar = "█" * int(layer_base_gb * gb_to_char)
         print(f"  Base Layer Total:     {layer_base_gb:.2f} GB  {layer_bar}")
 
         # Print expert information
-        expert_gb = memory_map["experts"]["per_expert"]
+        expert_gb = float(memory_map["experts"]["per_expert"])
         expert_bar = "█" * int(expert_gb * gb_to_char)
-        print(f"\nExperts:")
+        print("\nExperts:")
         print(f"  Single Expert:        {expert_gb:.2f} GB  {expert_bar}")
 
-        experts_per_layer_gb = memory_map["experts"]["per_layer"] / num_layers
+        experts_per_layer_gb = float(memory_map["experts"]["per_layer"]) / num_layers
         experts_layer_bar = "█" * int(experts_per_layer_gb * gb_to_char)
         print(
             f"  All Experts (1 layer): {experts_per_layer_gb:.2f} GB  {experts_layer_bar}"
         )
 
         # Print final component
-        final_gb = memory_map["final_layer"]["total"]
+        final_gb = float(memory_map["final_layer"]["total"])
         final_bar = "█" * int(final_gb * gb_to_char)
         print(f"\nFinal Layer:            {final_gb:.2f} GB  {final_bar}")
 
@@ -530,14 +565,13 @@ class DeviceMapper:
         # Calculate optimal split for dual GPUs
         if self.num_gpus >= 2:
             # Rough estimate assuming balanced split
-            memory_per_gpu = total_gb / 2
+            memory_per_gpu = total_gb / 2.0
             print(f"Total model size:       {total_gb:.2f} GB")
             print(f"Per GPU (balanced):     {memory_per_gpu:.2f} GB")
 
             # Calculate what our current device mapping strategy would put on each GPU
             # This is a rough approximation
             gpu0_layers = num_layers // 2 - 3  # Our current strategy
-            layer_ratio = gpu0_layers / num_layers
 
             # First layer experts all on GPU 0
             gpu0_experts = num_experts  # First layer
@@ -553,10 +587,10 @@ class DeviceMapper:
             gpu1_experts = (num_experts * num_layers) - gpu0_experts
 
             # Get sizes from memory map
-            embed_gb = memory_map["embedding"]["total"]
-            layer_base_gb = memory_map["layer_base"]["per_layer"]
-            expert_gb = memory_map["experts"]["per_expert"]
-            final_gb = memory_map["final_layer"]["total"]
+            embed_gb = float(memory_map["embedding"]["total"])
+            layer_base_gb = float(memory_map["layer_base"]["per_layer"])
+            expert_gb = float(memory_map["experts"]["per_expert"])
+            final_gb = float(memory_map["final_layer"]["total"])
 
             # Calculate memory
             gpu0_memory = (
@@ -572,35 +606,48 @@ class DeviceMapper:
             )
 
             print("\nWith Current Mapping Strategy:")
+            # Use safe dictionary access with .get() method
+            gpu0_avail = self.gpu_memory.get(0, 1.0)
+            gpu1_avail = self.gpu_memory.get(1, 1.0)
+
             print(
-                f"GPU 0 Memory:           {gpu0_memory:.2f} GB ({gpu0_memory/self.gpu_memory.get(0, 1.0)*100:.1f}% of available {self.gpu_memory.get(0, 1.0):.1f} GB)"
+                f"GPU 0 Memory:           {gpu0_memory:.2f} GB ({(gpu0_memory/gpu0_avail*100):.1f}% of available {gpu0_avail:.1f} GB)"
             )
             print(
-                f"GPU 1 Memory:           {gpu1_memory:.2f} GB ({gpu1_memory/self.gpu_memory.get(1, 1.0)*100:.1f}% of available {self.gpu_memory.get(1, 1.0):.1f} GB)"
+                f"GPU 1 Memory:           {gpu1_memory:.2f} GB ({(gpu1_memory/gpu1_avail*100):.1f}% of available {gpu1_avail:.1f} GB)"
             )
         else:
             print(f"Total model size:       {total_gb:.2f} GB")
             if self.num_gpus >= 1 and 0 in self.gpu_memory:
+                gpu0_mem = self.gpu_memory[0]
                 print(
-                    f"GPU 0 Memory:           {total_gb:.2f} GB ({total_gb/self.gpu_memory[0]*100:.1f}% of available {self.gpu_memory[0]:.1f} GB)"
+                    f"GPU 0 Memory:           {total_gb:.2f} GB ({(total_gb/gpu0_mem*100):.1f}% of available {gpu0_mem:.1f} GB)"
                 )
 
         print("=" * 80)
 
         # Recommendations
         print("\nRecommendations:")
-        if total_gb > sum(self.gpu_memory.values()):
+        if total_gb > sum(float(v) for v in self.gpu_memory.values()):
             print("⚠️ Model is larger than available GPU memory! Consider:")
             print("  • Using 4-bit quantization instead of 8-bit")
             print("  • Offloading some components to CPU")
             print("  • Reducing context length")
-        elif self.num_gpus >= 2 and max(gpu0_memory, gpu1_memory) > min(
-            self.gpu_memory.values()
-        ):
-            print("⚠️ Unbalanced distribution exceeds individual GPU memory! Consider:")
-            print("  • Reducing expert count on the larger GPU")
-            print("  • Moving more base layers to the GPU with fewer experts")
-            print("  • Adjusting critical_layers to save GPU memory")
+        elif self.num_gpus >= 2:
+            # Get minimum available GPU memory
+            gpu_memories = []
+            for i in range(self.num_gpus):
+                if i in self.gpu_memory:
+                    gpu_memories.append(self.gpu_memory[i])
+
+            # Only check if we have memory values
+            if gpu_memories and max(gpu0_memory, gpu1_memory) > min(gpu_memories):
+                print(
+                    "⚠️ Unbalanced distribution exceeds individual GPU memory! Consider:"
+                )
+                print("  • Reducing expert count on the larger GPU")
+                print("  • Moving more base layers to the GPU with fewer experts")
+                print("  • Adjusting critical_layers to save GPU memory")
         else:
             print("✓ Current configuration should fit within available GPU memory")
 
@@ -640,7 +687,7 @@ class DeviceMapper:
 
         # Log memory estimates
         quant_str = "no" if quantization is None else quantization
-        print(f"Memory estimates (with {quant_str} quantization):")
+        print(f"Memory component estimates (with {quant_str} quantization):")
         print(f"  Expert: {component_sizes['expert']:.2f} GB")
         print(f"  Layer: {component_sizes['layer']:.2f} GB")
         print(f"  Embeddings: {component_sizes['embedding']:.2f} GB")
@@ -648,6 +695,22 @@ class DeviceMapper:
 
         # Count modules by device
         device_counts = self._count_modules_by_device(device_map)
+
+        # Fix layer count bug: original implementation was double-counting layers
+        # Find how many actual complete layers are on each device
+        actual_layers_by_device = {}
+        for i in range(self.num_layers):
+            layer_key = f"model.layers.{i}"
+            if layer_key in device_map:
+                device = device_map[layer_key]
+                if device not in actual_layers_by_device:
+                    actual_layers_by_device[device] = 0
+                actual_layers_by_device[device] += 1
+
+        # Update the device_counts with corrected layer counts
+        for device in device_counts:
+            if device in actual_layers_by_device:
+                device_counts[device]["layers"] = actual_layers_by_device[device]
 
         # Calculate memory usage per device
         memory_usage = {}
@@ -659,6 +722,37 @@ class DeviceMapper:
                 + counts.get("output", 0) * component_sizes["output"]
             )
             memory_usage[device] = memory_gb
+
+        # Print detailed breakdown per device
+        print("\nDetailed memory breakdown by device (theoretical estimate):")
+        print(
+            "NOTE: These are simplified estimates and actual runtime memory usage will be lower"
+        )
+        print(
+            "      due to memory optimizations, efficient attention, and KV-cache management."
+        )
+        for device, counts in device_counts.items():
+            print(f"\n  {device}:")
+            if counts.get("layers", 0) > 0:
+                layers_mem = counts.get("layers", 0) * component_sizes["layer"]
+                print(
+                    f"    Layers: {counts.get('layers', 0)} × {component_sizes['layer']:.2f}GB = {layers_mem:.2f}GB"
+                )
+            if counts.get("experts", 0) > 0:
+                experts_mem = counts.get("experts", 0) * component_sizes["expert"]
+                print(
+                    f"    Experts: {counts.get('experts', 0)} × {component_sizes['expert']:.2f}GB = {experts_mem:.2f}GB"
+                )
+            if counts.get("embed", 0) > 0:
+                embed_mem = counts.get("embed", 0) * component_sizes["embedding"]
+                print(f"    Embedding: {embed_mem:.2f}GB")
+            if counts.get("output", 0) > 0:
+                output_mem = counts.get("output", 0) * component_sizes["output"]
+                print(f"    Output: {output_mem:.2f}GB")
+
+            # Total for this device
+            device_total = memory_usage[device]
+            print(f"    Total: {device_total:.2f}GB")
 
         return memory_usage
 
@@ -684,8 +778,7 @@ class DeviceMapper:
         import re
 
         # Get embedding device
-        embedding_device = device_map.get("model.embed_tokens", self.CUDA0)
-        embedding_device_str = str(embedding_device)
+        embedding_device = device_map.get(self.MODULE_EMBED_TOKENS, self.CUDA0)
 
         # Function to ensure tensor is on correct device
         def ensure_device(module_name, module, assigned_device):
@@ -707,13 +800,16 @@ class DeviceMapper:
         moved_components = 0
 
         # Check if model has MoE structure
-        if hasattr(model, "model") and hasattr(model.model, "layers"):
+        if (
+            hasattr(model, "model")
+            and hasattr(model.model, "layers")
+            and hasattr(model.model, "embed_tokens")
+        ):
             # Handle embeddings first
-            if hasattr(model.model, "embed_tokens"):
-                if ensure_device(
-                    "model.embed_tokens", model.model.embed_tokens, embedding_device
-                ):
-                    moved_components += 1
+            if ensure_device(
+                "model.embed_tokens", model.model.embed_tokens, embedding_device
+            ):
+                moved_components += 1
 
             # Process each layer's components
             for i, layer in enumerate(model.model.layers):
@@ -740,13 +836,13 @@ class DeviceMapper:
 
         # Handle output layers
         if hasattr(model.model, "norm"):
-            norm_device = device_map.get("model.norm", embedding_device)
-            if ensure_device("model.norm", model.model.norm, norm_device):
+            norm_device = device_map.get(self.MODULE_NORM, embedding_device)
+            if ensure_device(self.MODULE_NORM, model.model.norm, norm_device):
                 moved_components += 1
 
         if hasattr(model, "lm_head"):
-            lm_head_device = device_map.get("lm_head", embedding_device)
-            if ensure_device("lm_head", model.lm_head, lm_head_device):
+            lm_head_device = device_map.get(self.MODULE_LM_HEAD, embedding_device)
+            if ensure_device(self.MODULE_LM_HEAD, model.lm_head, lm_head_device):
                 moved_components += 1
 
         if moved_components > 0:

@@ -7,6 +7,8 @@ of the MTG AI Assistant system, focusing on multi-component interactions.
 
 import pytest
 import sys
+import os
+import gc
 import torch
 from pathlib import Path
 from typing import List, Dict, Union, Any, cast
@@ -50,64 +52,54 @@ def prepared_pipeline():
 
     # Get device map that explicitly assigns components to specific GPUs
     # with quantization-specific optimizations
-    quantization_bits = 4  # Start with 4-bit quantization
 
     # Explicitly use float16 for test environments
     print("Loading model and tokenizer with simplified config for testing...")
-    try:
-        # First attempt: Try with 4-bit quantization - use our custom device mapping
-        print("Attempting to load with 4-bit quantization and custom device mapping...")
-        # Create an explicit device map with our custom mapper
-        device_map_for_loader = device_mapper.create_mixtral_device_map(
-            quantization_bits=4  # Match the desired quantization
-        )
-        print(f"Created custom balanced device map for 4-bit quantization")
+    # Only attempt 4-bit quantization - use our custom device mapping
+    print("Loading model with 4-bit quantization and optimized device mapping...")
 
+    # Apply memory optimizations before loading
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    # Manually set memory environment variables
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = (
+        "max_split_size_mb:64,expandable_segments:True"
+    )
+
+    try:
+        # First attempt: Try with highly optimized device mapping
+        device_map_for_loader = device_mapper.create_mixtral_device_map(
+            quantization_bits=4  # Only use 4-bit quantization
+        )
+
+        print("Created optimized device map for 4-bit quantization")
+
+        # Using our memory-optimized loading
         model, tokenizer = load_quantized_model(
-            device_map=device_map_for_loader,  # Use our optimized map directly
-            quantization_type="4bit",
+            device_map=device_map_for_loader,
+            quantization_type="4bit",  # Force 4-bit quantization
             compute_dtype=torch.float16,
             use_safetensors=True,
+            use_memory_optimizations=True,  # Enable enhanced memory management
         )
     except (ValueError, RuntimeError) as e:
-        # Clear CUDA cache before retrying with 8-bit
+        # If the custom device map fails, try with balanced mapping
+        print(f"Custom device mapping failed: {e}")
         torch.cuda.empty_cache()
-        print(f"4-bit quantization failed: {e}, falling back to 8-bit quantization")
+        gc.collect()
 
-        try:
-            # Try with 8-bit quantization next - more memory but more compatible
-            # Use custom device mapping for 8-bit as well
-            device_map_for_loader = device_mapper.create_mixtral_device_map(
-                quantization_bits=8  # Match the quantization type
-            )
-            print(f"Created custom balanced device map for 8-bit quantization")
+        # Use the built-in balanced device mapping from HF
+        device_map_for_loader = "balanced"
 
-            model, tokenizer = load_quantized_model(
-                device_map=device_map_for_loader,  # Use our optimized map directly
-                quantization_type="8bit",  # Fall back to 8-bit
-                use_safetensors=True,
-            )
-        except RuntimeError as e2:
-            # If that also fails, try with reduced reserve memory
-            torch.cuda.empty_cache()
-            print(
-                f"8-bit quantization failed: {e2}, trying with reduced reserve memory"
-            )
-
-            # Create a custom device map with minimal reserved memory
-            if torch.cuda.device_count() >= 2:
-                device_map_for_loader = device_mapper.create_mixtral_device_map(
-                    quantization_bits=8
-                )
-                print("Created custom device map with reduced memory reservation")
-            else:
-                device_map_for_loader = "auto"
-
-            model, tokenizer = load_quantized_model(
-                device_map=device_map_for_loader,
-                quantization_type="8bit",
-                use_safetensors=True,
-            )
+        # Try with simpler device mapping but still 4-bit
+        model, tokenizer = load_quantized_model(
+            device_map=device_map_for_loader,
+            quantization_type="4bit",  # Still using 4-bit
+            compute_dtype=torch.float16,
+            use_safetensors=True,
+            use_memory_optimizations=True,
+        )
 
     assert isinstance(
         model, PreTrainedModel

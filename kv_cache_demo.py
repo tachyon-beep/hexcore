@@ -40,7 +40,7 @@ def simulate_generation(
     memory_tracker.start_monitoring()
 
     # Initial KV cache
-    kv_cache = create_mock_kv_cache(seq_length=initial_seq_length)
+    _ = create_mock_kv_cache(seq_length=initial_seq_length)
     cache_sizes = [initial_seq_length]
     memory_usages = []
 
@@ -89,6 +89,7 @@ def simulate_generation(
     # Print summary
     print("\n=== Memory Usage Summary ===")
     print(f"Maximum GPU usage: {max_gpu_usage}")
+    print(f"Maximum CPU usage: {max_cpu_usage}")
     print(f"Cache sizes: {cache_sizes}")
 
     return cache_sizes, memory_usages

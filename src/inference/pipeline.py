@@ -613,7 +613,7 @@ class MTGInferencePipeline:
         except Exception as e:
             # For any other exceptions
             logger.error(f"Unexpected error during generation: {str(e)}")
-            return f"I encountered an unexpected error while processing your query. This issue has been logged for investigation."
+            return "I encountered an unexpected error while processing your query. This issue has been logged for investigation."
 
     def _get_generation_params(self, expert_type, inputs, max_new_tokens, temperature):
         """Get generation parameters based on expert type."""

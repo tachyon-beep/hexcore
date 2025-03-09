@@ -103,7 +103,6 @@ class TestExpertAdapterManager:
         mock_get_peft.return_value = mock_model
 
         # Make the mock model correctly handle device placement
-        mock_model_to_result = MagicMock()
         mock_model.to.return_value = mock_model  # Return self from to() method
 
         manager = ExpertAdapterManager(mock_model, adapters_dir=temp_adapter_dir)
@@ -358,7 +357,7 @@ class TestExpertAdapterManager:
         assert stats["experts_in_cpu"] == 1
         assert stats["active_expert"] == "REASON"
         assert "expert_memory_stats" in stats
-        assert stats["expert_memory_stats"]["REASON"] == 0.5
+        assert stats["expert_memory_stats"]["REASON"] == pytest.approx(0.5)
         assert "lru_order" in stats
         assert stats["lru_order"] == ["EXPLAIN", "REASON"]
 
