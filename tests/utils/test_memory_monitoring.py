@@ -211,15 +211,28 @@ class TestMemoryMonitoring:
                 pytest.approx(5 * 1024, rel=1e-5) == first_snapshot.gpu_memory_used[0]
             )  # 5 GB in MB (allocated + reserved)
 
+    @patch("transformers.AutoModelForCausalLM.from_pretrained")
+    @patch("transformers.AutoTokenizer.from_pretrained")
     @patch("src.utils.gpu_memory_tracker.GPUMemoryTracker.memory_stats")
     def test_model_loading_memory_impact(
-        self, mock_memory_stats, mock_gpu_memory_stats
+        self,
+        mock_memory_stats,
+        mock_tokenizer_from_pretrained,
+        mock_model_from_pretrained,
+        mock_gpu_memory_stats,
     ):
         """Test measuring memory impact during model loading."""
+        # Setup mocks to avoid any real model loading
+        mock_model = MagicMock()
+        mock_tokenizer = MagicMock()
+        mock_model_from_pretrained.return_value = mock_model
+        mock_tokenizer_from_pretrained.return_value = mock_tokenizer
+
+        # Set memory stats to show before/after memory change
         mock_memory_stats.side_effect = [
-            # Initial memory state
+            # Initial memory state - returned when before_stats is called
             mock_gpu_memory_stats(),
-            # After model loading (should show increased usage)
+            # After model loading (shows increased usage) - returned when after_stats is called
             {
                 "cpu_used_gb": 4.2,
                 "cpu_total_gb": 16.0,
@@ -244,43 +257,37 @@ class TestMemoryMonitoring:
             },
         ]
 
-        # Mock the model loading function
-        with patch("src.models.model_loader.load_quantized_model") as mock_load_model:
-            mock_model = MagicMock()
-            mock_tokenizer = MagicMock()
-            mock_load_model.return_value = (mock_model, mock_tokenizer)
+        # Check memory usage before model loading
+        before_stats = GPUMemoryTracker.memory_stats()
 
-            # Check memory usage before and after model loading
-            before_stats = GPUMemoryTracker.memory_stats()
+        # Call the actual load_quantized_model function
+        # The model loading is fully mocked but the function code still runs
+        model, tokenizer = load_quantized_model(
+            model_id="mistralai/Mixtral-8x7B-v0.1",
+            quantization_type="4bit",
+            device_map="auto",
+            compute_dtype=torch.float16,
+        )
 
-            # Use auto device map to avoid device conversion issues
-            device_map = "auto"
+        # Get memory stats after model loading
+        after_stats = GPUMemoryTracker.memory_stats()
 
-            # Replace unused variables with underscores
-            _, _ = load_quantized_model(
-                model_id="mistralai/Mixtral-8x7B-v0.1",
-                quantization_type="4bit",
-                device_map=device_map,  # Use explicit device map
-                compute_dtype=torch.float16,  # Use explicit dtype for tests
-            )
-            after_stats = GPUMemoryTracker.memory_stats()
+        # Verify memory increase
+        assert (
+            after_stats["gpu"][0]["allocated_memory_gb"]
+            > before_stats["gpu"][0]["allocated_memory_gb"]
+        )
+        assert (
+            after_stats["gpu"][0]["percent_used"]
+            > before_stats["gpu"][0]["percent_used"]
+        )
 
-            # Verify memory increase
-            assert (
-                after_stats["gpu"][0]["allocated_memory_gb"]
-                > before_stats["gpu"][0]["allocated_memory_gb"]
-            )
-            assert (
-                after_stats["gpu"][0]["percent_used"]
-                > before_stats["gpu"][0]["percent_used"]
-            )
-
-            # The exact increase would depend on the model, but we verify there is an increase
-            memory_increase = (
-                after_stats["gpu"][0]["allocated_memory_gb"]
-                - before_stats["gpu"][0]["allocated_memory_gb"]
-            )
-            assert pytest.approx(6.0, rel=1e-5) == memory_increase  # 10.0 - 4.0
+        # The exact increase would depend on the model, but we verify there is an increase
+        memory_increase = (
+            after_stats["gpu"][0]["allocated_memory_gb"]
+            - before_stats["gpu"][0]["allocated_memory_gb"]
+        )
+        assert pytest.approx(6.0, rel=1e-5) == memory_increase  # 10.0 - 4.0
 
     @patch("src.utils.gpu_memory_tracker.GPUMemoryTracker")
     def test_context_manager_usage(self, mock_tracker_class):

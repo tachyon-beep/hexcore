@@ -8,7 +8,7 @@
 
 Integration tests were failing with CUDA out-of-memory (OOM) errors during model loading, specifically when loading embeddings, despite our balanced device mapping:
 
-```
+```text
 torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 250.00 MiB.
 GPU 0 has a total capacity of 15.60 GiB of which 7.06 MiB is free.
 ```

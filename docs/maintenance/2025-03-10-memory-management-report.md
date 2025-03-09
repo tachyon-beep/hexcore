@@ -101,7 +101,7 @@ The implementation has been extensively tested with the following results:
 
 ### 3.1 Device Mapping Tests (✅ PASSED)
 
-```
+```text
 Device Map Statistics:
 
   cuda:0:
@@ -123,7 +123,7 @@ Expert Distribution:
 
 ### 3.2 Memory Performance Tests (✅ ALL PASSED)
 
-```
+```text
 tests/integration/test_memory_performance.py::test_memory_usage PASSED
 tests/integration/test_memory_performance.py::test_large_context_memory_usage PASSED
 tests/integration/test_memory_performance.py::test_memory_usage_with_experts PASSED
@@ -133,7 +133,7 @@ These tests previously failed due to memory issues, confirming our changes have 
 
 ### 3.3 Stability Tests (✅ ALL PASSED)
 
-```
+```text
 tests/integration/test_stability.py::test_multiple_sequential_queries PASSED
 tests/integration/test_stability.py::test_long_complex_response_stability PASSED
 tests/integration/test_stability.py::test_error_handling_edge_cases PASSED
@@ -141,7 +141,7 @@ tests/integration/test_stability.py::test_error_handling_edge_cases PASSED
 
 ### 3.4 Multi-Expert Pipeline Tests (✅ ALL PASSED)
 
-```
+```text
 tests/integration/test_multi_expert_pipeline.py::TestMultiExpertPipeline::test_single_expert_generation PASSED
 tests/integration/test_multi_expert_pipeline.py::TestMultiExpertPipeline::test_multi_expert_generation PASSED
 tests/integration/test_multi_expert_pipeline.py::TestMultiExpertPipeline::test_cross_expert_attention_integration PASSED
@@ -150,7 +150,7 @@ tests/integration/test_multi_expert_pipeline.py::TestMultiExpertPipeline::test_e
 
 ### 3.5 KV Cache Tests (1 PASSED, 1 FAILED)
 
-```
+```text
 tests/integration/test_kv_cache_optimization.py::test_memory_usage_with_cache_manager FAILED
 tests/integration/test_kv_cache_optimization.py::test_compare_memory_with_and_without_cache_manager PASSED
 ```
@@ -216,6 +216,8 @@ Memory usage tracking allows you to monitor how GPU resources are consumed durin
 4. **Automatic leak detection**: Implementing thresholds that trigger warnings when memory usage grows beyond expected patterns.
 
 5. **Visualization tools**: Creating memory usage graphs over time to spot gradual leaks that might otherwise go unnoticed.
+
+6. **Real Model Testing**: Creating a separate integration test using a small but real model (like a distilled model under 1GB) to verify the interaction between monitoring and actual model loading.
 
 **Proposed Implementation:**
 
