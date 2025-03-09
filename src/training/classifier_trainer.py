@@ -6,6 +6,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score, f1_score
 import logging
 from typing import Dict, List, Any
+from src.utils.expert_config import get_expert_types, get_expert_id_mappings
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +40,22 @@ def train_transaction_classifier(
     texts = [example["text"] for example in train_data]
     labels = [example["expert_type"] for example in train_data]
 
+    # Convert labels to IDs using centralized expert configuration
+    _, label2id = get_expert_id_mappings()
+
+    # Validate that all training examples have known expert types
+    unknown_experts = set(labels) - set(label2id.keys())
+    if unknown_experts:
+        logger.warning(
+            f"Found unknown expert types in training data: {unknown_experts}"
+        )
+        # Filter out examples with unknown expert types
+        valid_indices = [i for i, label in enumerate(labels) if label in label2id]
+        texts = [texts[i] for i in valid_indices]
+        labels = [labels[i] for i in valid_indices]
+        logger.info(f"Filtered to {len(texts)} valid examples")
+
     # Convert labels to IDs
-    label2id = {"REASON": 0, "EXPLAIN": 1, "TEACH": 2, "PREDICT": 3, "RETROSPECT": 4}
     label_ids = [label2id[label] for label in labels]
 
     # Create dataset

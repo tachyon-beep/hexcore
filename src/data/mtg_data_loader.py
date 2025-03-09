@@ -46,9 +46,39 @@ class DocumentType(TypedDict):
     metadata: dict
 
 
+# Field name mappings for standardization
+FIELD_MAPPINGS = {
+    # Mana and cost information
+    "mana_cost": ["mana_cost", "manaCost"],
+    "cmc": ["cmc", "convertedManaCost", "manaValue"],
+    # Type information
+    "type_line": ["type_line", "type"],
+    "types": ["types"],
+    "subtypes": ["subtypes"],
+    "supertypes": ["supertypes"],
+    # Text and rules information
+    "oracle_text": ["oracle_text", "text"],
+    # Color information
+    "colors": ["colors"],
+    "color_identity": ["color_identity", "colorIdentity"],
+    # Stats information
+    "power": ["power"],
+    "toughness": ["toughness"],
+    "loyalty": ["loyalty"],
+    # Additional information
+    "keywords": ["keywords"],
+    "legalities": ["legalities"],
+    "rulings": ["rulings"],
+}
+
+
 class MTGDataLoader:
     """
     Load and manage Magic: The Gathering card and rules data from JSON files.
+
+    This class handles loading card data and comprehensive rules from JSON files,
+    normalizing field names for consistency, and providing methods to search and
+    retrieve the loaded data.
     """
 
     def __init__(self, data_dir: str = "data") -> None:
@@ -293,78 +323,76 @@ class MTGDataLoader:
         Returns:
             Processed card data
         """
-        # Initialize with basic properties, handling different possible field names
+        # Initialize with basic properties
         card: CardType = {"name": card_data.get("name", "")}
 
-        # Add mana cost information
-        if "mana_cost" in card_data:
-            card["mana_cost"] = card_data["mana_cost"]
-        elif "manaCost" in card_data:
-            card["mana_cost"] = card_data["manaCost"]
-
-        # Add converted mana cost / mana value
-        if "cmc" in card_data:
-            card["cmc"] = card_data["cmc"]
-        elif "convertedManaCost" in card_data:
-            card["cmc"] = card_data["convertedManaCost"]
-        elif "manaValue" in card_data:
-            card["cmc"] = card_data["manaValue"]
-
-        # Add type information
-        if "type_line" in card_data:
-            card["type_line"] = card_data["type_line"]
-        elif "type" in card_data:
-            card["type_line"] = card_data["type"]
-
-        # Add card text
-        if "oracle_text" in card_data:
-            card["oracle_text"] = card_data["oracle_text"]
-        elif "text" in card_data:
-            card["oracle_text"] = card_data["text"]
-
-        # Add color information
-        if "colors" in card_data:
-            card["colors"] = card_data["colors"]
-
-        if "color_identity" in card_data:
-            card["color_identity"] = card_data["color_identity"]
-        elif "colorIdentity" in card_data:
-            card["color_identity"] = card_data["colorIdentity"]
-
-        # Add power/toughness for creatures
-        if "power" in card_data:
-            card["power"] = card_data["power"]
-
-        if "toughness" in card_data:
-            card["toughness"] = card_data["toughness"]
-
-        # Add loyalty for planeswalkers
-        if "loyalty" in card_data:
-            card["loyalty"] = card_data["loyalty"]
-
-        # Add keywords
-        if "keywords" in card_data:
-            card["keywords"] = card_data["keywords"]
-
-        # Add legalities
-        if "legalities" in card_data:
-            card["legalities"] = card_data["legalities"]
-
-        # Add type information (for detailed categorization)
-        if "types" in card_data:
-            card["types"] = card_data["types"]
-
-        if "subtypes" in card_data:
-            card["subtypes"] = card_data["subtypes"]
-
-        if "supertypes" in card_data:
-            card["supertypes"] = card_data["supertypes"]
-
-        # Add rulings if available
-        if "rulings" in card_data:
-            card["rulings"] = card_data["rulings"]
+        # Process card data by category
+        self._add_mana_info(card, card_data)
+        self._add_type_info(card, card_data)
+        self._add_text_info(card, card_data)
+        self._add_color_info(card, card_data)
+        self._add_stat_info(card, card_data)
+        self._add_additional_info(card, card_data)
 
         return card
+
+    def _add_mana_info(self, card: CardType, card_data: Dict[str, Any]) -> None:
+        """Add mana cost and cmc information to card data."""
+        # Use field mappings for standardization
+        for target_field, source_fields in FIELD_MAPPINGS.items():
+            if target_field in ["mana_cost", "cmc"]:
+                for field in source_fields:
+                    if field in card_data:
+                        card[target_field] = card_data[field]
+                        break
+
+    def _add_type_info(self, card: CardType, card_data: Dict[str, Any]) -> None:
+        """Add type information to card data."""
+        # Use field mappings for standardization
+        for target_field, source_fields in FIELD_MAPPINGS.items():
+            if target_field in ["type_line", "types", "subtypes", "supertypes"]:
+                for field in source_fields:
+                    if field in card_data:
+                        card[target_field] = card_data[field]
+                        break
+
+    def _add_text_info(self, card: CardType, card_data: Dict[str, Any]) -> None:
+        """Add oracle text to card data."""
+        # Use field mappings for standardization
+        for field in FIELD_MAPPINGS["oracle_text"]:
+            if field in card_data:
+                card["oracle_text"] = card_data[field]
+                break
+
+    def _add_color_info(self, card: CardType, card_data: Dict[str, Any]) -> None:
+        """Add color information to card data."""
+        # Use field mappings for standardization
+        for target_field, source_fields in FIELD_MAPPINGS.items():
+            if target_field in ["colors", "color_identity"]:
+                for field in source_fields:
+                    if field in card_data:
+                        card[target_field] = card_data[field]
+                        break
+
+    def _add_stat_info(self, card: CardType, card_data: Dict[str, Any]) -> None:
+        """Add power, toughness and loyalty information to card data."""
+        # Use field mappings for standardization
+        for target_field, source_fields in FIELD_MAPPINGS.items():
+            if target_field in ["power", "toughness", "loyalty"]:
+                for field in source_fields:
+                    if field in card_data:
+                        card[target_field] = card_data[field]
+                        break
+
+    def _add_additional_info(self, card: CardType, card_data: Dict[str, Any]) -> None:
+        """Add additional card information like keywords and rulings."""
+        # Use field mappings for standardization
+        for target_field, source_fields in FIELD_MAPPINGS.items():
+            if target_field in ["keywords", "legalities", "rulings"]:
+                for field in source_fields:
+                    if field in card_data:
+                        card[target_field] = card_data[field]
+                        break
 
     def load_rules(self) -> int:
         """
@@ -623,49 +651,82 @@ class MTGDataLoader:
         Returns:
             List of matching cards with scores
         """
-        results = []
         query_lower = query.lower()
+        scored_cards = []
 
         for card_name, card in self.cards.items():
-            score = 0
-
-            # Check name match
-            if query_lower in card_name.lower():
-                score += 10
-                # Exact match gets highest priority
-                if query_lower == card_name.lower():
-                    score += 100
-
-            # Check text match - try different field names
-            card_text = ""
-            if "oracle_text" in card and card["oracle_text"]:
-                card_text = card["oracle_text"]
-            elif "text" in card and card["text"]:
-                card_text = card["text"]
-
-            if card_text and query_lower in card_text.lower():
-                score += 5
-
-            # Check type match - try different field names
-            card_type = ""
-            if "type_line" in card and card["type_line"]:
-                card_type = card["type_line"]
-            elif "type" in card and card["type"]:
-                card_type = card["type"]
-
-            if card_type and query_lower in card_type.lower():
-                score += 3
-
+            score = self._calculate_card_match_score(card_name, card, query_lower)
             if score > 0:
                 # Create a copy with name included and add score
                 card_copy = dict(card)
                 card_copy["name"] = card_name
                 card_copy["score"] = score
-                results.append(card_copy)
+                scored_cards.append(card_copy)
 
         # Sort by score and return top matches
-        results.sort(key=lambda x: x["score"], reverse=True)
-        return results[:limit]
+        scored_cards.sort(key=lambda x: x["score"], reverse=True)
+        return scored_cards[:limit]
+
+    def _calculate_card_match_score(
+        self, card_name: str, card: CardType, query_lower: str
+    ) -> int:
+        """
+        Calculate match score for a card based on query.
+
+        Args:
+            card_name: Name of the card
+            card: Card data
+            query_lower: Lowercase search query
+
+        Returns:
+            Score representing how well the card matches the query
+        """
+        score = 0
+
+        # Check name match
+        score += self._get_name_match_score(card_name, query_lower)
+
+        # Check text match
+        score += self._get_text_match_score(card, query_lower)
+
+        # Check type match
+        score += self._get_type_match_score(card, query_lower)
+
+        return score
+
+    def _get_name_match_score(self, card_name: str, query_lower: str) -> int:
+        """Calculate score based on card name match."""
+        if query_lower == card_name.lower():
+            return 110  # Exact match gets highest priority
+        elif query_lower in card_name.lower():
+            return 10
+        return 0
+
+    def _get_text_match_score(self, card: CardType, query_lower: str) -> int:
+        """Calculate score based on card text match."""
+        # Get card text from appropriate field
+        card_text = ""
+        if "oracle_text" in card and card["oracle_text"]:
+            card_text = card["oracle_text"]
+        elif "text" in card and card["text"]:
+            card_text = card["text"]
+
+        if card_text and query_lower in card_text.lower():
+            return 5
+        return 0
+
+    def _get_type_match_score(self, card: CardType, query_lower: str) -> int:
+        """Calculate score based on card type match."""
+        # Get type information from appropriate field
+        card_type = ""
+        if "type_line" in card and card["type_line"]:
+            card_type = card["type_line"]
+        elif "type" in card and card["type"]:
+            card_type = card["type"]
+
+        if card_type and query_lower in card_type.lower():
+            return 3
+        return 0
 
     def search_rules(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """

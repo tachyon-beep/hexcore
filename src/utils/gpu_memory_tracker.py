@@ -4,7 +4,7 @@ import torch
 import psutil
 import threading
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 import matplotlib.pyplot as plt
 from datetime import datetime
 
@@ -173,7 +173,7 @@ class GPUMemoryTracker:
             print("No memory snapshots to plot.")
             return
 
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+        _, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
 
         # Extract timestamps and convert to relative time in seconds
         start_time = self.snapshots[0].timestamp
@@ -289,7 +289,7 @@ class GPUMemoryTracker:
             print(f"Memory usage report saved to {file_path}")
 
     @staticmethod
-    def memory_stats() -> Dict[str, any]:
+    def memory_stats() -> Dict[str, Any]:
         """
         Get current memory statistics (static method for quick access).
 
@@ -328,6 +328,57 @@ class GPUMemoryTracker:
                 stats["gpu"][i] = gpu_stats
 
         return stats
+
+
+def log_memory_usage(label: str = "") -> Dict[int, Dict[str, float]]:
+    """
+    Log current GPU memory usage with detailed statistics.
+
+    Args:
+        label: Optional label to identify this memory snapshot
+
+    Returns:
+        Dictionary with memory statistics per GPU
+    """
+    memory_stats = {}
+
+    # Print header with timestamp
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    print(f"\n=== Memory Usage [{timestamp}] {label} ===")
+
+    # Collect stats for each GPU
+    for i in range(torch.cuda.device_count()):
+        allocated = torch.cuda.memory_allocated(i) / (1024**3)
+        reserved = torch.cuda.memory_reserved(i) / (1024**3)
+        max_allocated = torch.cuda.max_memory_allocated(i) / (1024**3)
+
+        # Calculate fragmentation (difference between reserved and allocated)
+        fragmentation = reserved - allocated
+        fragmentation_percent = (fragmentation / reserved * 100) if reserved > 0 else 0
+
+        # Store stats
+        memory_stats[i] = {
+            "allocated_gb": allocated,
+            "reserved_gb": reserved,
+            "max_allocated_gb": max_allocated,
+            "fragmentation_gb": fragmentation,
+            "fragmentation_percent": fragmentation_percent,
+        }
+
+        # Print formatted stats
+        print(f"GPU {i}: {allocated:.2f}GB allocated, {reserved:.2f}GB reserved")
+        print(
+            f"       {fragmentation:.2f}GB fragmentation ({fragmentation_percent:.1f}%)"
+        )
+        print(f"       {max_allocated:.2f}GB peak usage")
+
+    # Print total across all GPUs
+    total_allocated = sum(stats["allocated_gb"] for stats in memory_stats.values())
+    total_reserved = sum(stats["reserved_gb"] for stats in memory_stats.values())
+    print(f"TOTAL: {total_allocated:.2f}GB allocated, {total_reserved:.2f}GB reserved")
+    print("=" * 50)
+
+    return memory_stats
 
 
 # Context manager for convenient usage

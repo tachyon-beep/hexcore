@@ -3,6 +3,7 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch.nn.functional as F
 from typing import Dict, List, Tuple, Optional, Any, Union
 import logging
+from src.utils.expert_config import get_expert_id_mappings, get_expert_types
 
 logger = logging.getLogger(__name__)
 
@@ -39,15 +40,24 @@ class TransactionClassifier:
             torch_dtype=torch.float16,  # Use float16 for efficiency
         ).to(device)
 
-        # Define expert labels
-        self.id2label = {
-            0: "REASON",
-            1: "EXPLAIN",
-            2: "TEACH",
-            3: "PREDICT",
-            4: "RETROSPECT",
-        }
-        self.label2id = {v: k for k, v in self.id2label.items()}
+        # Get expert type mappings from centralized configuration
+        expert_types = get_expert_types()
+
+        # If num_labels doesn't match the number of expert types, adjust model to fit available types
+        if num_labels != len(expert_types):
+            logger.warning(
+                f"Model has {num_labels} labels but {len(expert_types)} expert types defined. "
+                f"Using all {len(expert_types)} expert types from configuration."
+            )
+            # Re-create model with correct number of labels if needed
+            self.model = AutoModelForSequenceClassification.from_pretrained(
+                model_path,
+                num_labels=len(expert_types),
+                torch_dtype=torch.float16,
+            ).to(device)
+
+        # Get the ID mappings from the configuration
+        self.id2label, self.label2id = get_expert_id_mappings()
 
     def classify(self, query: str) -> Dict[str, float]:
         """

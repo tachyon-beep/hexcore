@@ -1,12 +1,41 @@
-# src/knowledge/retreiver.py
+# src/knowledge/retriever.py
 from sentence_transformers import SentenceTransformer
 import faiss
+import re
+import importlib.metadata
 import numpy as np
 import json
 from typing import List, Dict, Tuple, Optional, Any
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def get_faiss_version() -> Tuple[int, int, int]:
+    """
+    Get the installed FAISS version as a tuple of (major, minor, patch).
+
+    Returns:
+        Tuple containing the version components.
+    """
+    try:
+        # Get version string using importlib.metadata instead of deprecated pkg_resources
+        try:
+            version_str = importlib.metadata.version("faiss-cpu")
+        except importlib.metadata.PackageNotFoundError:
+            # If faiss-cpu is not found, try faiss-gpu
+            version_str = importlib.metadata.version("faiss-gpu")
+
+        # Parse version string - handle different formats
+        # Could be something like '1.7.2' or '1.7.2.post1'
+        match = re.match(r"(\d+)\.(\d+)\.(\d+)", version_str)
+        if match:
+            major, minor, patch = map(int, match.groups())
+            return (major, minor, patch)
+        return (1, 7, 0)  # Default fallback version
+    except Exception as e:
+        logger.warning(f"Could not determine FAISS version: {str(e)}")
+        return (1, 7, 0)  # Default fallback version
 
 
 class MTGRetriever:
@@ -27,7 +56,11 @@ class MTGRetriever:
         self.document_types = []
         self.document_ids = []
 
-        logger.info(f"Initialized MTG Retriever with {embedding_model}")
+        # Check FAISS version for compatibility
+        self.faiss_version = get_faiss_version()
+        logger.info(
+            f"Initialized MTG Retriever with {embedding_model}, FAISS version {'.'.join(map(str, self.faiss_version))}"
+        )
 
     def get_index(self) -> List[str]:
         """
@@ -62,20 +95,48 @@ class MTGRetriever:
 
         # Create embeddings
         logger.info(f"Creating embeddings for {len(texts)} documents")
-        embeddings = self.embedding_model.encode(texts, show_progress_bar=True)
+        embeddings = self.embedding_model.encode(
+            sentences=texts,
+            batch_size=32,
+            show_progress_bar=True,
+            convert_to_tensor=False,
+            normalize_embeddings=True,
+        )
 
         # Convert to numpy array with the right dtype
         embeddings_np = np.array(embeddings, dtype=np.float32)
 
         # Normalize for cosine similarity
-        faiss.normalize_L2(embeddings_np)
+        # We handle it ourselves to avoid FAISS version inconsistencies
+        norms = np.linalg.norm(embeddings_np, axis=1, keepdims=True)
+        norms = np.maximum(norms, 1e-8)  # To avoid division by zero
+        embeddings_np = embeddings_np / norms
 
         # Create FAISS index
         vector_dimension = embeddings_np.shape[1]
         self.document_index = faiss.IndexFlatIP(vector_dimension)
 
-        # Add embeddings to index - FAISS 1.9.0 expects only the embedding array
-        self.document_index.add(embeddings_np)  # type: ignore
+        # Add embeddings to index with FAISS version compatibility handling
+        try:
+            # The modern API (1.7.0+) expects a simple array
+            self.document_index.add(
+                x=embeddings_np
+            )  # type: ignore  # Suppress parameter name checking
+            logger.info("Added embeddings using standard FAISS method")
+        except Exception as e:
+            # Log the error with useful version information
+            logger.error(
+                f"Error adding embeddings to FAISS index (version {'.'.join(map(str, self.faiss_version))}): {str(e)}"
+            )
+            logger.warning(
+                "Your FAISS version may be incompatible with this code. "
+                "Consider upgrading to FAISS 1.7.0 or later."
+            )
+            # Re-raise with more context
+            raise RuntimeError(
+                f"Failed to add embeddings to FAISS index. FAISS version: {'.'.join(map(str, self.faiss_version))}. "
+                f"Error: {str(e)}. Consider upgrading FAISS to 1.7.0 or later."
+            )
 
         logger.info(f"Indexed {len(texts)} documents with dimension {vector_dimension}")
 
@@ -98,14 +159,22 @@ class MTGRetriever:
                 "Document index not initialized. Call index_documents first."
             )
 
-        # Create query embedding
-        query_embedding = self.embedding_model.encode([query])
+        # Create query embedding - explicitly specify all parameters to avoid errors
+        query_embedding = self.embedding_model.encode(
+            sentences=[query],
+            batch_size=1,
+            show_progress_bar=False,
+            convert_to_tensor=False,
+            normalize_embeddings=True,
+        )
 
         # Convert to numpy array with the right dtype
         query_np = np.array(query_embedding, dtype=np.float32)
 
-        # Normalize for cosine similarity
-        faiss.normalize_L2(query_np)
+        # Normalize for cosine similarity (do it ourselves instead of using faiss.normalize_L2)
+        norms = np.linalg.norm(query_np, axis=1, keepdims=True)
+        norms = np.maximum(norms, 1e-8)  # To avoid division by zero
+        query_np = query_np / norms
 
         # In FAISS 1.9.0, search directly returns distances and indices
         distances, labels = self.document_index.search(query_np, top_k)  # type: ignore
@@ -163,14 +232,22 @@ class MTGRetriever:
         # Get all unique document types
         unique_types = set(self.document_types)
 
-        # Create query embedding
-        query_embedding = self.embedding_model.encode([query])
+        # Create query embedding - explicitly specify all parameters to avoid errors
+        query_embedding = self.embedding_model.encode(
+            sentences=[query],
+            batch_size=1,
+            show_progress_bar=False,
+            convert_to_tensor=False,
+            normalize_embeddings=True,
+        )
 
         # Convert to numpy array with the right dtype
         query_np = np.array(query_embedding, dtype=np.float32)
 
-        # Normalize for cosine similarity
-        faiss.normalize_L2(query_np)
+        # Normalize for cosine similarity (do it ourselves instead of using faiss.normalize_L2)
+        norms = np.linalg.norm(query_np, axis=1, keepdims=True)
+        norms = np.maximum(norms, 1e-8)  # To avoid division by zero
+        query_np = query_np / norms
 
         # Determine how many results to retrieve
         search_k = top_k_per_type * len(unique_types)
