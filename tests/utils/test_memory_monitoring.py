@@ -262,7 +262,7 @@ class TestMemoryMonitoring:
 
         # Call the actual load_quantized_model function
         # The model loading is fully mocked but the function code still runs
-        model, tokenizer = load_quantized_model(
+        _, _ = load_quantized_model(
             model_id="mistralai/Mixtral-8x7B-v0.1",
             quantization_type="4bit",
             device_map="auto",
