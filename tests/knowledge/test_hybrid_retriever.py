@@ -162,7 +162,7 @@ class TestHybridRetriever:
         # Verify initialization state
         assert retriever.vector_retriever_initialized is False
         assert retriever.knowledge_graph_initialized is False
-        assert retriever.default_latency_budget_ms == 200.0
+        assert retriever.default_latency_budget_ms == pytest.approx(200.0)
 
     def test_initialize_vector_retriever(self, hybrid_retriever, mock_vector_retriever):
         """Test initializing the vector retriever."""
@@ -271,7 +271,7 @@ class TestHybridRetriever:
         mock_cache_manager.get.return_value = None
 
         # Perform retrieval
-        results = hybrid_retriever.retrieve("lightning bolt")
+        _ = hybrid_retriever.retrieve("lightning bolt")
 
         # Verify cache miss workflow
         mock_cache_manager.get.assert_called_once()
@@ -515,7 +515,7 @@ class TestHybridRetriever:
         mock_query_analyzer.analyze_query.side_effect = slow_analyze
 
         # Perform retrieval with tiny budget
-        results = hybrid_retriever.retrieve("lightning bolt", latency_budget_ms=10)
+        _ = hybrid_retriever.retrieve("lightning bolt", latency_budget_ms=10)
 
         # Verify emergency retrieval was triggered
         mock_vector_retriever.retrieve.assert_called_once()

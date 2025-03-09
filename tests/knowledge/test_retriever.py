@@ -102,19 +102,24 @@ class TestMTGRetriever:
         # Test with custom model
         custom_model = "distilbert-base-nli-mean-tokens"
         with patch("src.knowledge.retriever.SentenceTransformer") as mock_st:
-            retriever = MTGRetriever(embedding_model=custom_model)
+            # Create instance but we only need to verify the mock was called correctly
+            MTGRetriever(embedding_model=custom_model)
             mock_st.assert_called_once_with(custom_model)
 
-    def test_faiss_version_compatibility(self, retriever, sample_documents, mock_faiss):
+    def test_faiss_version_compatibility(self, sample_documents, mock_faiss):
         """Test FAISS version compatibility handling in actual use."""
         # This test verifies the real behavior we care about: how the code handles different FAISS versions
 
         # Test successful indexing with modern FAISS
         with patch("src.knowledge.retriever.get_faiss_version", return_value=(1, 7, 3)):
+            # Create a retriever within this context
+            test_retriever = MTGRetriever()
             # Index should work normally
-            retriever.index_documents(sample_documents)
+            test_retriever.index_documents(sample_documents)
             mock_faiss.IndexFlatIP.assert_called_once()
-            assert retriever.document_index.add.call_count == 1
+            # The mock index's add method should have been called once
+            mock_index = mock_faiss.IndexFlatIP.return_value
+            assert mock_index.add.call_count == 1
 
         # Reset the mock
         mock_faiss.reset_mock()
@@ -127,11 +132,14 @@ class TestMTGRetriever:
             mock_index.add.side_effect = RuntimeError("FAISS error")
             mock_faiss.IndexFlatIP.return_value = mock_index
 
+            # Create a retriever within this context
+            outdated_retriever = MTGRetriever()
+
             # Should raise with helpful error message
             with pytest.raises(
                 RuntimeError, match="Failed to add embeddings.*Consider upgrading FAISS"
             ):
-                retriever.index_documents(sample_documents)
+                outdated_retriever.index_documents(sample_documents)
 
     def test_indexing_documents(self, retriever, sample_documents, mock_faiss):
         """Test indexing documents."""
@@ -186,7 +194,7 @@ class TestMTGRetriever:
         assert results[0]["id"] == "card1"
         assert results[0]["type"] == "card"
         assert results[0]["text"] == "Lightning Bolt deals 3 damage to any target."
-        assert results[0]["score"] == 0.9
+        assert results[0]["score"] == pytest.approx(0.9)
 
     def test_retrieve_with_type_filter(self, retriever, sample_documents):
         """Test retrieval with document type filter."""
@@ -236,12 +244,12 @@ class TestMTGRetriever:
         # Check first category
         assert len(results["card"]) == 1
         assert results["card"][0]["id"] == "card1"
-        assert results["card"][0]["score"] == 0.9
+        assert results["card"][0]["score"] == pytest.approx(0.9)
 
         # Check second category
         assert len(results["rule"]) == 1
         assert results["rule"][0]["id"] == "rule1"
-        assert results["rule"][0]["score"] == 0.8
+        assert results["rule"][0]["score"] == pytest.approx(0.8)
 
     def test_save_and_load_index(self, retriever, sample_documents, mock_faiss):
         """Test saving and loading the index."""

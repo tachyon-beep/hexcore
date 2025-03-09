@@ -38,8 +38,8 @@ class TestRetrievalLatencyTracker:
 
         # Verify initialization
         assert len(tracker.component_latencies) > 0  # Should have default components
-        assert tracker.alert_threshold == alert_threshold
-        assert tracker.component_budgets_ms["total"] == default_budget_ms
+        assert tracker.alert_threshold == pytest.approx(alert_threshold)
+        assert tracker.component_budgets_ms["total"] == pytest.approx(default_budget_ms)
         assert tracker.component_latencies["total"].maxlen == window_size
         assert tracker.alert_status is False
         assert tracker.alert_count == 0
@@ -55,7 +55,7 @@ class TestRetrievalLatencyTracker:
 
         # Verify recording
         assert len(tracker.component_latencies[component]) == 1
-        assert tracker.component_latencies[component][0] == latency_ms
+        assert tracker.component_latencies[component][0] == pytest.approx(latency_ms)
 
         # Verify budget tracking (allow for 1 or 2 due to implementation changes)
         assert 1 <= len(tracker.budgets_exceeded) <= 2
@@ -79,7 +79,7 @@ class TestRetrievalLatencyTracker:
         # Verify new component was added
         assert component in tracker.component_latencies
         assert len(tracker.component_latencies[component]) == 1
-        assert tracker.component_latencies[component][0] == latency_ms
+        assert tracker.component_latencies[component][0] == pytest.approx(latency_ms)
 
     def test_record_multiple_components(self, tracker):
         """Test recording latencies for multiple components at once."""
@@ -96,7 +96,7 @@ class TestRetrievalLatencyTracker:
         # Verify all components were recorded
         for component, latency in latencies.items():
             assert len(tracker.component_latencies[component]) == 1
-            assert tracker.component_latencies[component][0] == latency
+            assert tracker.component_latencies[component][0] == pytest.approx(latency)
 
         # Verify budget tracking
         assert len(tracker.budgets_exceeded) == 1
@@ -111,7 +111,7 @@ class TestRetrievalLatencyTracker:
         tracker.set_budget(component, new_budget)
 
         # Verify budget was set
-        assert tracker.component_budgets_ms[component] == new_budget
+        assert tracker.component_budgets_ms[component] == pytest.approx(new_budget)
 
         # Record under budget
         tracker.record(component, 20.0)
@@ -138,10 +138,10 @@ class TestRetrievalLatencyTracker:
 
         # Verify basic statistics
         assert stats["count"] == len(latencies)
-        assert stats["mean_ms"] == 30.0
-        assert stats["median_ms"] == 30.0
-        assert stats["min_ms"] == 10.0
-        assert stats["max_ms"] == 50.0
+        assert stats["mean_ms"] == pytest.approx(30.0)
+        assert stats["median_ms"] == pytest.approx(30.0)
+        assert stats["min_ms"] == pytest.approx(10.0)
+        assert stats["max_ms"] == pytest.approx(50.0)
         assert "stddev_ms" in stats  # Standard deviation should be calculated
 
         # Not enough points for percentiles
@@ -173,11 +173,11 @@ class TestRetrievalLatencyTracker:
         # Alert threshold is 0.6, so need >60% over budget
 
         # Record 7 latencies over budget (70%)
-        for i in range(7):
+        for _ in range(7):
             tracker.record("total", 150.0)  # Over budget
 
         # Record 3 latencies under budget (30%)
-        for i in range(3):
+        for _ in range(3):
             tracker.record("total", 50.0)  # Under budget
 
         # Trigger alert calculation
@@ -190,7 +190,7 @@ class TestRetrievalLatencyTracker:
         assert tracker.alert_last_triggered is not None
 
         # Record more latencies to bring under threshold
-        for i in range(5):
+        for _ in range(5):
             tracker.record("total", 50.0)  # Under budget
 
         # Trigger alert calculation again
@@ -280,16 +280,16 @@ class TestRetrievalLatencyTracker:
     def test_budget_exceeded_rate(self, tracker):
         """Test calculation of budget exceeded rate."""
         # Empty tracker
-        assert tracker._get_budget_exceeded_rate() == 0.0
+        assert tracker._get_budget_exceeded_rate() == pytest.approx(0.0)
 
         # 50% exceeded
         tracker.budgets_exceeded.append(1)  # Exceeded
         tracker.budgets_exceeded.append(0)  # Not exceeded
-        assert tracker._get_budget_exceeded_rate() == 0.5
+        assert tracker._get_budget_exceeded_rate() == pytest.approx(0.5)
 
         # 66.7% exceeded
         tracker.budgets_exceeded.append(1)  # Exceeded
-        assert tracker._get_budget_exceeded_rate() == 2 / 3
+        assert tracker._get_budget_exceeded_rate() == pytest.approx(2 / 3)
 
     def test_reset(self, tracker):
         """Test reset functionality."""

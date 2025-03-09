@@ -24,11 +24,15 @@ def get_faiss_version() -> Tuple[int, int, int]:
 
         try:
             version_str = importlib.metadata.version("faiss-cpu")
-        except (importlib.metadata.PackageNotFoundError, ImportError):
+        except (
+            ImportError
+        ):  # ImportError is a parent class that includes PackageNotFoundError
             try:
                 # If faiss-cpu is not found, try faiss-gpu
                 version_str = importlib.metadata.version("faiss-gpu")
-            except (importlib.metadata.PackageNotFoundError, ImportError) as e:
+            except (
+                ImportError
+            ) as e:  # ImportError is a parent class that includes PackageNotFoundError
                 logger.warning(f"Could not determine FAISS version: {str(e)}")
                 return (1, 7, 0)  # Default fallback version
 

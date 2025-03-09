@@ -305,7 +305,6 @@ class ContextAssembler:
 
         # Get entity names for matching
         entity_names = [entity["name"].lower() for entity in query_entities]
-        entity_types = [entity["type"] for entity in query_entities]
 
         # Process each document
         for i, doc in enumerate(documents):

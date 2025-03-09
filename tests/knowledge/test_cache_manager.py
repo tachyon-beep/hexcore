@@ -205,7 +205,7 @@ class TestKnowledgeGraphCache:
         )  # Allow either since implementation changed
 
         # After implementation changes, both keys might be invalidated - both scenarios are acceptable
-        assert 0 <= len(cache.cache) <= 1
+        assert len(cache.cache) == 0 or len(cache.cache) == 1
         if len(cache.cache) == 1:
             assert cache.get("key1") is not None
         assert cache.get("key2") is None
@@ -321,14 +321,14 @@ class TestKnowledgeGraphCache:
 
         # One hit out of one request
         metrics = cache.get_metrics()
-        assert metrics["hit_rate_percent"] == 100.0
+        assert metrics["hit_rate_percent"] == pytest.approx(100.0)
 
         # Miss on a nonexistent key
         cache.get("nonexistent")
 
         # One hit out of two requests
         metrics = cache.get_metrics()
-        assert metrics["hit_rate_percent"] == 50.0
+        assert metrics["hit_rate_percent"] == pytest.approx(50.0)
 
         # Another hit
         cache.get("key1")

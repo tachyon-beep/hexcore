@@ -157,8 +157,8 @@ class HybridRetriever:
         if remaining_budget_ms <= 0:
             # Emergency fallback to simple vector retrieval
             logger.warning(
-                f"Latency budget exceeded during query analysis. "
-                f"Using emergency vector retrieval fallback."
+                "Latency budget exceeded during query analysis. "
+                "Using emergency vector retrieval fallback."
             )
 
             # Record total latency before returning
@@ -273,11 +273,7 @@ class HybridRetriever:
             "merged_count": len(merged_results),
             "query_type": query_analysis["query_type"],
             "entities_found": len(query_analysis["entities"]),
-            "strategy": (
-                "hybrid"
-                if (vector_results and graph_results)
-                else "vector" if vector_results else "graph"
-            ),
+            "strategy": self._determine_strategy_type(vector_results, graph_results),
         }
 
         # Add metadata to results - create new list to avoid modifying originals
@@ -323,10 +319,13 @@ class HybridRetriever:
         # If it's already a list
         if isinstance(results, list):
             # Convert non-dict items to dicts
-            return [
-                item if isinstance(item, dict) else {"content": item}
-                for item in results
-            ]
+            formatted_results = []
+            for item in results:
+                if isinstance(item, dict):
+                    formatted_results.append(item)
+                else:
+                    formatted_results.append({"content": item})
+            return formatted_results
 
         # If it's a single dict
         if isinstance(results, dict):
@@ -832,3 +831,23 @@ class HybridRetriever:
             Number of cache entries invalidated
         """
         return self.cache.invalidate(entity_type=entity_type, entity_id=entity_id)
+
+    def _determine_strategy_type(
+        self, vector_results: List, graph_results: List
+    ) -> str:
+        """
+        Determine the retrieval strategy type based on results.
+
+        Args:
+            vector_results: Results from vector retrieval
+            graph_results: Results from graph traversal
+
+        Returns:
+            Strategy type as string
+        """
+        if vector_results and graph_results:
+            return "hybrid"
+        elif vector_results:
+            return "vector"
+        else:
+            return "graph"

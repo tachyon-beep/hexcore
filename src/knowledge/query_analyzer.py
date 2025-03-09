@@ -209,35 +209,51 @@ class QueryAnalyzer:
         Returns:
             Updated analysis result
         """
-        query_type = result["query_type"]
-        entities = result["entities"]
-
         # Default to using vector retrieval (semantic search)
         result["requires_structured_knowledge"] = False
         result["prioritize_graph"] = False
 
-        # Check indicators for structured knowledge need
-        if query_type == "rule_lookup":
-            # Direct rule lookups benefit from graph traversal
+        # Apply strategy based on query type
+        self._apply_query_type_strategy(result)
+
+        # Apply strategy based on relationship indicators
+        self._apply_relationship_strategy(query, result)
+
+        return result
+
+    def _apply_query_type_strategy(self, result: Dict[str, Any]) -> None:
+        """Apply retrieval strategy based on query type."""
+        query_type = result["query_type"]
+        entities = result["entities"]
+
+        # Types that benefit from graph traversal with high priority
+        if query_type in ["rule_lookup", "complex_interaction"]:
             result["requires_structured_knowledge"] = True
             result["prioritize_graph"] = True
 
-        elif query_type == "complex_interaction":
-            # Complex interactions often require traversing relationships
-            result["requires_structured_knowledge"] = True
-            result["prioritize_graph"] = True
-
+        # Types that benefit from structured knowledge but work with either approach
         elif query_type == "card_lookup" and len(entities) == 1:
-            # Simple card lookups with a clear entity
             result["requires_structured_knowledge"] = True
-            result["prioritize_graph"] = False  # Can use either approach
+            # prioritize_graph remains False
 
         elif query_type == "mechanic_lookup":
-            # Mechanic lookups benefit from structure, but vector search works too
             result["requires_structured_knowledge"] = True
-            result["prioritize_graph"] = False
+            # prioritize_graph remains False
 
-        # Check for specific relationship indicators
+    def _apply_relationship_strategy(self, query: str, result: Dict[str, Any]) -> None:
+        """Apply retrieval strategy based on relationship indicators in the query."""
+        entities = result["entities"]
+
+        # Calculate relationship score
+        relationship_score = self._calculate_relationship_score(query)
+
+        # If multiple entities and strong relationship indicators, prioritize graph
+        if len(entities) >= 2 and relationship_score > 1.0:
+            result["requires_structured_knowledge"] = True
+            result["prioritize_graph"] = True
+
+    def _calculate_relationship_score(self, query: str) -> float:
+        """Calculate a score based on relationship indicators in the query."""
         relationship_indicators = {
             "between": 0.7,  # "interaction between X and Y"
             "relationship": 0.8,  # "relationship between X and Y"
@@ -248,18 +264,12 @@ class QueryAnalyzer:
             "when": 0.6,  # "when X happens, Y does Z"
         }
 
-        # Score relationship indicators
-        relationship_score = 0.0
-        for indicator, weight in relationship_indicators.items():
-            if indicator in query.lower():
-                relationship_score += weight
-
-        # If multiple entities and relationship indicators, prioritize graph
-        if len(entities) >= 2 and relationship_score > 1.0:
-            result["requires_structured_knowledge"] = True
-            result["prioritize_graph"] = True
-
-        return result
+        query_lower = query.lower()
+        return sum(
+            weight
+            for indicator, weight in relationship_indicators.items()
+            if indicator in query_lower
+        )
 
     def _extract_relationships(self, query: str, query_type: str) -> List[str]:
         """
@@ -286,22 +296,22 @@ class QueryAnalyzer:
         if query_type in type_to_relationships:
             relationships.extend(type_to_relationships[query_type])
 
-        # Detect specific relationship mentions
+        # Define shared patterns to avoid duplication
+        rule_about_pattern = [r"\brule(?:s)?\s+(?:about|governing|for)\s+(.+?)\b"]
+        card_reference_patterns = [
+            r"\bcard(?:s)?\s+(?:affected by|mentioned in)\s+(.+?)\b",
+            r"\bwhat\s+card(?:s)?\s+(?:are|is|get|gets)\s+(?:mentioned|referenced|cited)\s+in\s+(.+?)\b",
+        ]
+
+        # Detect specific relationship mentions using shared patterns where appropriate
         relationship_patterns = {
             "card_uses_mechanic": [
                 r"\bcard(?:s)?\s+with\s+(.+?)\b",
                 r"\b(.+?)\s+card(?:s)?\b",
             ],
-            "rule_references_rule": [
-                r"\brule(?:s)?\s+(?:about|governing|for)\s+(.+?)\b"
-            ],
-            "mechanic_governed_by_rule": [
-                r"\brule(?:s)?\s+(?:about|governing|for)\s+(.+?)\b"
-            ],
-            "card_referenced_in_rule": [
-                r"\bcard(?:s)?\s+(?:affected by|mentioned in)\s+(.+?)\b",
-                r"\bwhat\s+card(?:s)?\s+(?:are|is|get|gets)\s+(?:mentioned|referenced|cited)\s+in\s+(.+?)\b",
-            ],
+            "rule_references_rule": rule_about_pattern,
+            "mechanic_governed_by_rule": rule_about_pattern,
+            "card_referenced_in_rule": card_reference_patterns,
         }
 
         for rel_type, patterns in relationship_patterns.items():

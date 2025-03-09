@@ -118,7 +118,7 @@ class MTGKnowledgeGraph:
 
         # Process glossary data if available
         if glossary_data:
-            logger.info(f"Processing glossary terms...")
+            logger.info("Processing glossary terms...")
             self._process_glossary(glossary_data)
 
         # Update statistics
@@ -323,12 +323,11 @@ class MTGKnowledgeGraph:
             text = card["oracle_text"]
 
             for keyword in common_keywords:
-                # Skip keywords we've already found in mechanics list
-                if any(k["name"] == keyword for k in keywords):
-                    continue
-
-                # Check if keyword appears at the beginning of text, after commas, or after line breaks
-                if re.search(r"(^|,\s*|\n)" + re.escape(keyword) + r"\b", text):
+                # Only process keywords we haven't already found in mechanics list
+                # and that appear at the beginning of text, after commas, or after line breaks
+                if not any(k["name"] == keyword for k in keywords) and re.search(
+                    r"(^|,\s*|\n)" + re.escape(keyword) + r"\b", text
+                ):
                     keyword_id = f"keyword_{keyword.lower().replace(' ', '_')}"
 
                     # Create keyword if it doesn't exist
@@ -379,9 +378,8 @@ class MTGKnowledgeGraph:
         # This is a simplified approach - in a real implementation, this would
         # use more sophisticated NLP techniques to identify card names
         for card_name, card_id in self.name_to_id["cards"].items():
-            if card_name in text.lower():
-                if card_id not in referenced_cards:
-                    referenced_cards.append(card_id)
+            if card_name in text.lower() and card_id not in referenced_cards:
+                referenced_cards.append(card_id)
 
         return referenced_cards
 
@@ -616,8 +614,12 @@ class MTGKnowledgeGraph:
 
         # Queue holds paths, where each path is a list of nodes
         # Each node is a tuple: (entity_type, entity_id, relation_type, direction, path_signature)
-        # Use Any typing for flexibility
-        queue = [[(from_type, from_id, None, None, f"{from_type}:{from_id}")]]
+        # Use a more precise typing to avoid type errors
+        # Initialize the first path with consistent types
+        first_node = (from_type, from_id, None, None, f"{from_type}:{from_id}")
+        queue: List[List[Tuple[str, str, Optional[str], Optional[str], str]]] = [
+            [first_node]
+        ]
         paths = []
 
         while queue and len(paths) < 10:  # Limit to 10 paths for performance
@@ -678,15 +680,15 @@ class MTGKnowledgeGraph:
                         new_path_sig = (
                             f"{path_sig}>{rel_type}>{target_type}:{to_entity_id}"
                         )
-                        new_path = path + [
-                            (
-                                target_type,
-                                to_entity_id,
-                                rel_type,
-                                "outgoing",
-                                new_path_sig,
-                            )
-                        ]
+                        # Cast the new node to ensure consistent typing
+                        new_node: Tuple[str, str, Optional[str], Optional[str], str] = (
+                            target_type,
+                            to_entity_id,
+                            rel_type,
+                            "outgoing",
+                            new_path_sig,
+                        )
+                        new_path = path + [new_node]
                         queue.append(new_path)
 
                     # Incoming relationships
@@ -707,15 +709,15 @@ class MTGKnowledgeGraph:
                         new_path_sig = (
                             f"{path_sig}>{rel_type}>{source_type}:{from_entity_id}"
                         )
-                        new_path = path + [
-                            (
-                                source_type,
-                                from_entity_id,
-                                rel_type,
-                                "incoming",
-                                new_path_sig,
-                            )
-                        ]
+                        # Cast the new node to ensure consistent typing
+                        new_node: Tuple[str, str, Optional[str], Optional[str], str] = (
+                            source_type,
+                            from_entity_id,
+                            rel_type,
+                            "incoming",
+                            new_path_sig,
+                        )
+                        new_path = path + [new_node]
                         queue.append(new_path)
 
         return paths

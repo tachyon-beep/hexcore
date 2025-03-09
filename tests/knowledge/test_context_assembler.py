@@ -100,7 +100,7 @@ class TestContextAssembler:
         assert assembler.tokenizer == mock_tokenizer
         assert assembler.latency_tracker == mock_latency_tracker
         assert assembler.max_context_tokens == max_tokens
-        assert assembler.default_latency_budget_ms == latency_budget
+        assert assembler.default_latency_budget_ms == pytest.approx(latency_budget)
 
     def test_empty_documents(self, assembler):
         """Test handling of empty document list."""
@@ -275,7 +275,7 @@ class TestContextAssembler:
         text = "This is a test document."
 
         # Verify tokenizer is used when available
-        token_count = assembler._estimate_tokens(text)
+        _ = assembler._estimate_tokens(text)
         mock_tokenizer.encode.assert_called_with(text)
 
         # Test with empty text
@@ -323,20 +323,30 @@ class TestContextAssembler:
     def test_type_match_scoring(self, assembler):
         """Test document type matching with query type."""
         # Test card lookup query with different document types
-        assert assembler._calculate_type_match_score("card_lookup", "card") == 1.0
-        assert assembler._calculate_type_match_score("card_lookup", "rule") == 0.5
-        assert assembler._calculate_type_match_score("card_lookup", "glossary") == 0.7
+        assert assembler._calculate_type_match_score(
+            "card_lookup", "card"
+        ) == pytest.approx(1.0)
+        assert assembler._calculate_type_match_score(
+            "card_lookup", "rule"
+        ) == pytest.approx(0.5)
+        assert assembler._calculate_type_match_score(
+            "card_lookup", "glossary"
+        ) == pytest.approx(0.7)
 
         # Test rule lookup query with different document types
-        assert assembler._calculate_type_match_score("rule_lookup", "rule") == 1.0
-        assert assembler._calculate_type_match_score("rule_lookup", "card") == 0.3
+        assert assembler._calculate_type_match_score(
+            "rule_lookup", "rule"
+        ) == pytest.approx(1.0)
+        assert assembler._calculate_type_match_score(
+            "rule_lookup", "card"
+        ) == pytest.approx(0.3)
 
         # Test unknown document type
-        assert (
-            assembler._calculate_type_match_score("card_lookup", "unknown_type") == 0.5
-        )
+        assert assembler._calculate_type_match_score(
+            "card_lookup", "unknown_type"
+        ) == pytest.approx(0.5)
 
         # Test unknown query type (should use general defaults)
-        assert (
-            assembler._calculate_type_match_score("unknown_query_type", "card") == 0.7
-        )
+        assert assembler._calculate_type_match_score(
+            "unknown_query_type", "card"
+        ) == pytest.approx(0.7)
