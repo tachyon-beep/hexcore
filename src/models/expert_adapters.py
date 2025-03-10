@@ -68,44 +68,84 @@ class ExpertAdapterManager:
         """
         return {
             "REASON": LoraConfig(
-                r=16,
-                lora_alpha=32,
-                target_modules=["q_proj", "v_proj", "o_proj", "gate_proj", "up_proj"],
-                lora_dropout=0.05,
-                bias="none",
-                task_type="CAUSAL_LM",
+                **{
+                    "r": 16,
+                    "lora_alpha": 32,
+                    "target_modules": [
+                        "q_proj",
+                        "v_proj",
+                        "o_proj",
+                        "gate_proj",
+                        "up_proj",
+                    ],
+                    "lora_dropout": 0.05,
+                    "bias": "none",
+                    "task_type": "CAUSAL_LM",
+                }
             ),
             "EXPLAIN": LoraConfig(
-                r=16,
-                lora_alpha=32,
-                target_modules=["q_proj", "v_proj", "o_proj", "gate_proj", "up_proj"],
-                lora_dropout=0.10,
-                bias="none",
-                task_type="CAUSAL_LM",
+                **{
+                    "r": 16,
+                    "lora_alpha": 32,
+                    "target_modules": [
+                        "q_proj",
+                        "v_proj",
+                        "o_proj",
+                        "gate_proj",
+                        "up_proj",
+                    ],
+                    "lora_dropout": 0.10,
+                    "bias": "none",
+                    "task_type": "CAUSAL_LM",
+                }
             ),
             "TEACH": LoraConfig(
-                r=8,
-                lora_alpha=16,
-                target_modules=["q_proj", "v_proj", "o_proj", "gate_proj", "up_proj"],
-                lora_dropout=0.05,
-                bias="none",
-                task_type="CAUSAL_LM",
+                **{
+                    "r": 8,
+                    "lora_alpha": 16,
+                    "target_modules": [
+                        "q_proj",
+                        "v_proj",
+                        "o_proj",
+                        "gate_proj",
+                        "up_proj",
+                    ],
+                    "lora_dropout": 0.05,
+                    "bias": "none",
+                    "task_type": "CAUSAL_LM",
+                }
             ),
             "PREDICT": LoraConfig(
-                r=16,
-                lora_alpha=32,
-                target_modules=["q_proj", "v_proj", "o_proj", "gate_proj", "up_proj"],
-                lora_dropout=0.05,
-                bias="none",
-                task_type="CAUSAL_LM",
+                **{
+                    "r": 16,
+                    "lora_alpha": 32,
+                    "target_modules": [
+                        "q_proj",
+                        "v_proj",
+                        "o_proj",
+                        "gate_proj",
+                        "up_proj",
+                    ],
+                    "lora_dropout": 0.05,
+                    "bias": "none",
+                    "task_type": "CAUSAL_LM",
+                }
             ),
             "RETROSPECT": LoraConfig(
-                r=8,
-                lora_alpha=16,
-                target_modules=["q_proj", "v_proj", "o_proj", "gate_proj", "up_proj"],
-                lora_dropout=0.05,
-                bias="none",
-                task_type="CAUSAL_LM",
+                **{
+                    "r": 8,
+                    "lora_alpha": 16,
+                    "target_modules": [
+                        "q_proj",
+                        "v_proj",
+                        "o_proj",
+                        "gate_proj",
+                        "up_proj",
+                    ],
+                    "lora_dropout": 0.05,
+                    "bias": "none",
+                    "task_type": "CAUSAL_LM",
+                }
             ),
         }
 
@@ -194,9 +234,13 @@ class ExpertAdapterManager:
                 getattr(config, "target_modules", ["q_proj", "v_proj"])
             )
             # Very rough estimate of parameters per module in millions
-            params_per_module_M = 10
+            params_per_module_in_millions = 10
             estimated_params = (
-                rank * target_module_count * params_per_module_M * 1_000_000 * 2
+                rank
+                * target_module_count
+                * params_per_module_in_millions
+                * 1_000_000
+                * 2
             )
             # Convert to GB (4 bytes per param)
             estimated_gb = (estimated_params * 4) / (1024 * 1024 * 1024)
@@ -341,11 +385,15 @@ class ExpertAdapterManager:
                     start_time = time.time()
                     # Load directly to the target device
                     with torch.device(device):
-                        model = PeftModel.from_pretrained(
-                            self.base_model,
-                            adapter_path,
-                            torch_dtype=torch.float16,  # Use half precision to save memory
-                        )
+                        # Ensure adapter_path is a string before passing to from_pretrained
+                        if adapter_path and isinstance(adapter_path, str):
+                            model = PeftModel.from_pretrained(
+                                self.base_model,
+                                adapter_path,
+                                torch_dtype=torch.float16,  # Use half precision to save memory
+                            )
+                        else:
+                            raise ValueError(f"Invalid adapter path: {adapter_path}")
 
                     load_time = time.time() - start_time
                     logger.info(f"Adapter loading took {load_time:.2f}s")
@@ -435,25 +483,267 @@ class ExpertAdapterManager:
 
         return stats
 
-    def create_adapter(self, expert_type: str, training_data: Any) -> bool:
+    def create_adapter(
+        self,
+        expert_type: str,
+        training_data_path: str,
+        output_dir: Optional[str] = None,
+        **training_params,
+    ) -> bool:
         """
         Create and train a new adapter for the specified expert type.
 
         Args:
             expert_type: The expert type to create an adapter for
-            training_data: Training data for the adapter
+            training_data_path: Path to training data (directory or file)
+            output_dir: Directory to save adapter (defaults to self.adapters_dir/expert_type)
+            **training_params: Additional training parameters
 
         Returns:
             True if adapter was successfully created, False otherwise
-
-        Raises:
-            NotImplementedError: This method is not yet implemented
         """
-        raise NotImplementedError(
-            f"Training adapter for {expert_type} is not implemented yet. "
-            f"This feature will be available in a future version. "
-            f"The system currently supports using pre-trained adapters only."
-        )
+        import logging
+        import torch
+        import os
+        from pathlib import Path
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            # Import required training modules
+            from src.training.adapter_trainer import LoRAAdapterTrainer
+            from src.training.adapter_dataset import ExpertDataset
+            from src.training.expert_train_configs import get_expert_config
+            from transformers import AutoTokenizer
+
+            # Validate expert type
+            if expert_type not in self.expert_configs:
+                logger.error(f"Unknown expert type: {expert_type}")
+                return False
+
+            # Set up output directory
+            if output_dir is None:
+                output_dir = os.path.join(self.adapters_dir, expert_type.lower())
+
+            os.makedirs(output_dir, exist_ok=True)
+            logger.info(f"Will save adapter to {output_dir}")
+
+            # Extract base model
+            base_model = self.base_model
+            if isinstance(base_model, PeftModel):
+                base_model = base_model.get_base_model()
+
+            # Get base model name - handle different model property paths
+            base_model_path = "mistralai/Mixtral-8x7B-v0.1"  # Default fallback
+            try:
+                # Try common ways to get model name/path
+                if hasattr(base_model, "name_or_path"):
+                    base_model_path = base_model.name_or_path
+                elif hasattr(base_model, "config"):
+                    config = base_model.config
+                    if config.get("name_or_path"):
+                        base_model_path = config.get("name_or_path")
+                    elif config.get("_name_or_path"):
+                        base_model_path = config.get("_name_or_path")
+                    elif config.get("model_name"):
+                        base_model_path = config.get("model_name")
+                    elif isinstance(config, dict):
+                        # Safely access dictionary values using get() to avoid errors
+                        if config.get("name_or_path"):
+                            base_model_path = config.get("name_or_path")
+                        elif config.get("_name_or_path"):
+                            base_model_path = config.get("_name_or_path")
+                        elif config.get("model_name"):
+                            base_model_path = config.get("model_name")
+                elif isinstance(base_model, str):
+                    base_model_path = base_model
+
+                logger.info(f"Using base model: {base_model_path}")
+            except Exception as e:
+                logger.warning(f"Error determining base model path: {str(e)}")
+                logger.info(f"Using fallback base model: {base_model_path}")
+
+            # Create tokenizer
+            # Import Union for type annotation
+            from typing import Union, Any
+            from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+
+            # Use AutoTokenizer but handle None values for base_model_path
+            if base_model_path is None:
+                logger.warning("base_model_path is None, using fallback model")
+                base_model_path = "mistralai/Mixtral-8x7B-v0.1"  # Use fallback
+
+            # Cast base_model_path to string to satisfy type checker
+            base_model_path_str = str(base_model_path)
+            tokenizer: Any = AutoTokenizer.from_pretrained(base_model_path_str)
+            if tokenizer.pad_token_id is None:
+                tokenizer.pad_token_id = tokenizer.eos_token_id
+
+            # Load and process dataset
+            logger.info(f"Loading data from {training_data_path}")
+            data_sources = [training_data_path]
+            dataset = ExpertDataset(
+                expert_type=expert_type,
+                data_sources=data_sources,
+                tokenizer=tokenizer,
+                max_length=2048,  # Standard context size
+                validation_split=0.1,  # 10% validation split
+            )
+
+            train_dataset, val_dataset = dataset.create_train_val_split()
+            # Safely get dataset sizes
+            try:
+                # Safer way to get lengths
+                train_size = "unknown"
+                val_size = "unknown"
+
+                # Use a helper function to safely get dataset size with type-safety
+                def get_safe_dataset_size(dataset):
+                    """Safely get the size of a dataset, handling various dataset types."""
+                    if dataset is None:
+                        return "unknown"
+
+                    # Try getting size via len
+                    if hasattr(dataset, "__len__"):
+                        try:
+                            # Use cast to tell type checker we've verified __len__ exists
+                            from typing import cast, Sized
+
+                            return len(cast(Sized, dataset))
+                        except Exception:
+                            pass
+
+                    # Try getting size via num_rows
+                    if hasattr(dataset, "num_rows"):
+                        try:
+                            # Access as dictionary to avoid type errors
+                            return dataset.__dict__.get("num_rows", "unknown")
+                        except Exception:
+                            pass
+
+                    # Try getting size via shape
+                    if hasattr(dataset, "shape"):
+                        try:
+                            return dataset.shape[0]
+                        except Exception:
+                            pass
+
+                    return "unknown"
+
+                train_size = get_safe_dataset_size(train_dataset)
+                val_size = get_safe_dataset_size(val_dataset)
+
+                logger.info(
+                    f"Created dataset with {train_size} training and {val_size} validation examples"
+                )
+            except Exception as e:
+                logger.info(
+                    f"Created datasets (sizes could not be determined): {str(e)}"
+                )
+
+            # Set up trainer with memory optimization
+            trainer = LoRAAdapterTrainer(
+                base_model_path=base_model_path,
+                expert_type=expert_type,
+                output_dir=output_dir,
+                quantization_bits=4,  # 4-bit quantization for memory efficiency
+                use_mixed_precision=True,
+                override_train_params=training_params,
+            )
+
+            # Initialize training
+            logger.info("Setting up training...")
+            trainer.setup(device_map="auto")  # Let the trainer handle device mapping
+
+            # Force memory cleanup before training
+            torch.cuda.empty_cache()
+
+            # Run training
+            logger.info("Starting training...")
+            trainer.train(train_dataset, val_dataset)
+
+            # Evaluate final model
+            eval_result = trainer.evaluate(val_dataset)
+            logger.info(f"Final evaluation: {eval_result}")
+
+            # Save adapter
+            logger.info("Saving adapter...")
+            trainer.save_adapter()
+
+            # Add to available adapters
+            self.available_adapters.add(expert_type)
+
+            # Validate the adapter
+            logger.info("Validating adapter compatibility...")
+            validation_successful = self._validate_adapter_compatibility(
+                expert_type, output_dir
+            )
+
+            if validation_successful:
+                logger.info(
+                    f"Successfully created and validated adapter for {expert_type}"
+                )
+            else:
+                logger.warning(
+                    f"Adapter created but validation failed for {expert_type}"
+                )
+
+            return validation_successful
+
+        except Exception as e:
+            logger.error(f"Failed to create adapter for {expert_type}: {str(e)}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            return False
+
+    def _validate_adapter_compatibility(
+        self, expert_type: str, adapter_path: str
+    ) -> bool:
+        """
+        Validate that a newly created adapter is compatible with the base model.
+
+        Args:
+            expert_type: Expert type
+            adapter_path: Path to the adapter
+
+        Returns:
+            True if adapter is compatible, False otherwise
+        """
+        try:
+            # Try to load the adapter
+            adapter_model = PeftModel.from_pretrained(self.base_model, adapter_path)
+
+            # Check if basic inference works
+            import torch
+            from transformers import AutoTokenizer
+            from typing import Any
+
+            # Use Any to avoid type checking issues with tokenizer
+            tokenizer: Any = AutoTokenizer.from_pretrained(adapter_path)
+            input_text = f"<{expert_type}>\nTest query for compatibility validation."
+
+            input_ids = tokenizer(input_text, return_tensors="pt").input_ids
+
+            # Move to appropriate device
+            device = next(adapter_model.parameters()).device
+            input_ids = input_ids.to(device)
+
+            # Generate a short response (just to test)
+            with torch.no_grad():
+                adapter_model.generate(
+                    input_ids=input_ids, max_length=50, do_sample=False
+                )
+
+            # If we get here without errors, consider it validated
+            return True
+
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Adapter validation failed: {str(e)}")
+            return False
 
     def prefetch_expert(self, expert_type: str) -> bool:
         """

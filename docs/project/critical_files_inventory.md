@@ -35,6 +35,21 @@ This document provides an inventory of all critical files in the Hexcore project
 | `src/utils/gpu_utils.py`             | Helper functions for GPU operations            | MEDIUM - Utility component                |
 | `src/training/classifier_trainer.py` | Implements training for transaction classifier | MEDIUM - Required for classifier training |
 
+## Adapter Training Implementation
+
+| File                                      | Purpose                                                            | Criticality                                   |
+| ----------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------- |
+| `src/training/mixed_precision.py`         | Implements automatic mixed precision training with safety features | HIGH - Critical for memory-efficient training |
+| `src/training/adapter_dataset.py`         | Dataset class for expert-specific data loading and preprocessing   | HIGH - Training data processing pipeline      |
+| `src/training/adapter_trainer.py`         | LoRA adapter trainer with gradient accumulation and checkpointing  | HIGH - Core adapter fine-tuning functionality |
+| `src/training/train_all_experts.py`       | Script to train all expert adapters with orchestration logic       | MEDIUM - Training workflow automation         |
+| `src/training/expert_train_configs.py`    | Defines expert-specific training parameters and configurations     | HIGH - Training hyperparameter management     |
+| `data/training/reason_examples.jsonl`     | Training data for REASON expert with step-by-step rule analysis    | HIGH - Essential training data                |
+| `data/training/explain_examples.jsonl`    | Training data for EXPLAIN expert with clear concept articulation   | HIGH - Essential training data                |
+| `data/training/teach_examples.jsonl`      | Training data for TEACH expert with educational structures         | HIGH - Essential training data                |
+| `data/training/predict_examples.jsonl`    | Training data for PREDICT expert with probability assessments      | HIGH - Essential training data                |
+| `data/training/retrospect_examples.jsonl` | Training data for RETROSPECT expert with analysis of past plays    | HIGH - Essential training data                |
+
 ## Data & Knowledge Systems
 
 | File                          | Purpose                                     | Criticality                           |
@@ -46,6 +61,18 @@ This document provides an inventory of all critical files in the Hexcore project
 | `data/glossary.json`          | MTG term definitions                        | MEDIUM - Supplementary knowledge      |
 | `data/rules.json`             | MTG comprehensive rules                     | HIGH - Critical domain knowledge      |
 | `data/test_cases.json`        | Test cases for validation                   | MEDIUM - Testing resource             |
+
+## Knowledge Integration System
+
+| File                                 | Purpose                                                               | Criticality                                |
+| ------------------------------------ | --------------------------------------------------------------------- | ------------------------------------------ |
+| `src/knowledge/query_analyzer.py`    | Analyzes queries to determine optimal retrieval strategy              | HIGH - Guides retrieval process            |
+| `src/knowledge/hybrid_retriever.py`  | Implements hybrid vector + graph-based retrieval                      | HIGH - Core retrieval functionality        |
+| `src/knowledge/context_assembler.py` | Selects and formats knowledge for model consumption                   | HIGH - Knowledge integration               |
+| `src/knowledge/knowledge_graph.py`   | Graph-based representation of MTG entities and relationships          | HIGH - Structured knowledge representation |
+| `src/knowledge/cache_manager.py`     | Caching system for knowledge retrieval with entity-based invalidation | MEDIUM - Performance optimization          |
+| `src/knowledge/latency_tracker.py`   | Tracks and manages retrieval latency budgets                          | MEDIUM - Performance monitoring            |
+| `examples/knowledge_system_demo.py`  | Demonstrates usage of the knowledge system                            | LOW - Example only                         |
 
 ## Tools & Utilities
 
@@ -75,6 +102,18 @@ This document provides an inventory of all critical files in the Hexcore project
 | `tests/test_integration.py`                       | Base integration test functionality       | MEDIUM - Testing infrastructure        |
 | `tests/test_mtg_data_loader.py`                   | Alternative test for data loader          | LOW - Possibly redundant               |
 | `pytest.ini`                                      | PyTest configuration                      | MEDIUM - Testing configuration         |
+
+## Knowledge System Tests
+
+| File                                        | Purpose                                    | Criticality                         |
+| ------------------------------------------- | ------------------------------------------ | ----------------------------------- |
+| `tests/knowledge/test_query_analyzer.py`    | Tests query analysis functionality         | MEDIUM - Validates query processing |
+| `tests/knowledge/test_hybrid_retriever.py`  | Tests hybrid retrieval system              | HIGH - Validates core retrieval     |
+| `tests/knowledge/test_context_assembler.py` | Tests knowledge selection and formatting   | HIGH - Validates knowledge assembly |
+| `tests/knowledge/test_knowledge_graph.py`   | Tests graph-based knowledge representation | HIGH - Validates knowledge model    |
+| `tests/knowledge/test_cache_manager.py`     | Tests knowledge caching system             | MEDIUM - Validates caching          |
+| `tests/knowledge/test_latency_tracker.py`   | Tests latency budget management            | MEDIUM - Validates performance      |
+| `tests/knowledge/test_retriever.py`         | Tests base retrieval functionality         | MEDIUM - Validates retrieval        |
 
 ## Documentation
 
@@ -121,23 +160,30 @@ Based on the code review, the following components have these implementation sta
 2. **Expert System**: ~95% complete
 
    - Classification, adaptation, and collaboration fully implemented
-   - Training for adapters not yet implemented
+   - Training for adapters now implemented but needs final testing
 
 3. **Memory Management**: ~95% complete
 
    - Core optimizations complete
    - Advanced monitoring features in progress
 
-4. **Knowledge Integration**: ~85% complete
+4. **Knowledge Integration**: ~100% complete
 
-   - Basic retrieval working
-   - Advanced graph integration needed
+   - Comprehensive hybrid retrieval system implemented
+   - Context assembly and latency management complete
 
-5. **Testing Infrastructure**: ~90% complete
+5. **Adapter Training**: ~96% complete
+
+   - Mixed precision training implemented
+   - Dataset processing pipeline complete
+   - Training configuration system complete
+   - Final validation with all expert types needed
+
+6. **Testing Infrastructure**: ~90% complete
 
    - Comprehensive tests implemented
    - Some advanced tests needed
 
-6. **Pipeline Integration**: ~85% complete
+7. **Pipeline Integration**: ~85% complete
    - Core functionality working
    - Production hardening needed
