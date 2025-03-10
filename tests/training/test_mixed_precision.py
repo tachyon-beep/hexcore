@@ -71,7 +71,7 @@ class TestMixedPrecisionTrainer:
         assert trainer.use_amp is False
         assert trainer.scaler.is_enabled() is False
 
-    @patch("torch.cuda.amp.autocast")
+    @patch("torch.amp.autocast_mode.autocast")
     def test_get_ctx_manager_with_amp(self, mock_autocast):
         """Test context manager retrieval with AMP enabled."""
         # Setup
@@ -84,7 +84,7 @@ class TestMixedPrecisionTrainer:
 
         # Verify
         assert ctx == "autocast_context"
-        mock_autocast.assert_called_once()
+        mock_autocast.assert_called_once_with(device_type="cuda")
 
     def test_get_ctx_manager_without_amp(self):
         """Test context manager retrieval with AMP disabled."""
@@ -97,7 +97,7 @@ class TestMixedPrecisionTrainer:
         # Verify - should return nullcontext
         assert ctx.__class__.__name__ == "nullcontext"
 
-    @patch.object(torch.cuda.amp.GradScaler, "scale")
+    @patch.object(torch.amp.grad_scaler.GradScaler, "scale")
     def test_backward_with_amp(self, mock_scale, mock_loss):
         """Test backward pass with AMP enabled."""
         # Setup
@@ -125,9 +125,9 @@ class TestMixedPrecisionTrainer:
         # Verify
         mock_loss.backward.assert_called_once()
 
-    @patch.object(torch.cuda.amp.GradScaler, "unscale_")
-    @patch.object(torch.cuda.amp.GradScaler, "step")
-    @patch.object(torch.cuda.amp.GradScaler, "update")
+    @patch.object(torch.amp.grad_scaler.GradScaler, "unscale_")
+    @patch.object(torch.amp.grad_scaler.GradScaler, "step")
+    @patch.object(torch.amp.grad_scaler.GradScaler, "update")
     @patch.object(torch.nn.utils, "clip_grad_norm_")
     def test_step_with_amp(
         self, mock_clip_grad, mock_update, mock_step, mock_unscale, mock_optimizer
@@ -136,6 +136,12 @@ class TestMixedPrecisionTrainer:
         # Setup
         trainer = MixedPrecisionTrainer()
         trainer.use_amp = True  # Force AMP enabled
+
+        # Initialize the scaler manually to avoid unscale_ error
+        trainer.scaler = MagicMock()
+        trainer.scaler.unscale_ = mock_unscale
+        trainer.scaler.step = mock_step
+        trainer.scaler.update = mock_update
 
         # Mock gradient norm
         mock_clip_grad.return_value = torch.tensor(0.5)

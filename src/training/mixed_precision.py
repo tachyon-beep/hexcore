@@ -10,6 +10,10 @@ import math
 from contextlib import nullcontext
 from typing import Dict, List, Optional, Any
 
+# Import the specific modules directly
+import torch.amp.grad_scaler
+import torch.amp.autocast_mode
+
 
 class MixedPrecisionTrainer:
     """
@@ -35,14 +39,18 @@ class MixedPrecisionTrainer:
         self.grad_norm_history = []
         self.fp32_operations = set()
 
-        # Create scaler for AMP
-        self.scaler = torch.cuda.amp.GradScaler(
-            init_scale=scale_factor,
-            growth_factor=2.0,
-            backoff_factor=0.5,
-            growth_interval=growth_interval,
-            enabled=self.use_amp,
-        )
+        # Create scaler for AMP using the correct import
+        if self.use_amp:
+            self.scaler = torch.amp.grad_scaler.GradScaler(
+                init_scale=scale_factor,
+                growth_factor=2.0,
+                backoff_factor=0.5,
+                growth_interval=growth_interval,
+                enabled=True,
+            )
+        else:
+            # Create a dummy scaler when AMP is disabled
+            self.scaler = torch.amp.grad_scaler.GradScaler(enabled=False)
 
     def backward(self, loss):
         """Scale loss and perform backward pass with appropriate precision."""
@@ -88,7 +96,8 @@ class MixedPrecisionTrainer:
     def get_ctx_manager(self):
         """Get appropriate context manager for forward pass."""
         if self.use_amp:
-            return torch.cuda.amp.autocast()
+            # Using the correct import for autocast
+            return torch.amp.autocast_mode.autocast(device_type="cuda")
         else:
             return nullcontext()
 
