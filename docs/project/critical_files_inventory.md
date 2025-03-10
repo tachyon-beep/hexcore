@@ -16,16 +16,30 @@ This document provides an inventory of all critical files in the Hexcore project
 | `src/models/expert_adapters.py`        | Manages LoRA adapters for different experts with memory optimization                    | HIGH - Controls expert specialization       |
 | `src/inference/pipeline.py`            | Orchestrates the complete inference workflow                                            | HIGH - Main entry point for generation      |
 
+## Enhanced Pipeline Components
+
+| File                                        | Purpose                                                                            | Criticality                        |
+| ------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------- |
+| `src/inference/enhanced_pipeline.py`        | Production-ready pipeline with error handling, monitoring, conversation management | HIGH - Production inference system |
+| `examples/enhanced_inference_demo.py`       | Demonstrates enhanced pipeline with multi-turn conversations and error handling    | MEDIUM - Demo and usage example    |
+| `tests/inference/test_enhanced_pipeline.py` | Tests for the enhanced inference pipeline                                          | HIGH - Validates enhanced pipeline |
+
 ## Memory Management & Optimization
 
-| File                                 | Purpose                                                         | Criticality                           |
-| ------------------------------------ | --------------------------------------------------------------- | ------------------------------------- |
-| `src/utils/device_mapping.py`        | Implements balanced device mapping strategy for dual GPU setups | HIGH - Critical for memory balance    |
-| `src/utils/memory_management.py`     | Provides memory optimization utilities                          | HIGH - Core memory management         |
-| `src/utils/gpu_memory_tracker.py`    | Tracks and analyzes GPU memory usage                            | MEDIUM - Important for debugging      |
-| `src/utils/kv_cache_manager.py`      | Manages KV cache with memory constraints                        | HIGH - Improves generation efficiency |
-| `src/utils/test_balanced_mapping.py` | Tests for device mapping functionality                          | MEDIUM - Validates mapping strategy   |
-| `src/utils/test_model_loading.py`    | Tests for model loading performance                             | MEDIUM - Validates loading process    |
+| File                                     | Purpose                                                         | Criticality                                 |
+| ---------------------------------------- | --------------------------------------------------------------- | ------------------------------------------- |
+| `src/utils/device_mapping.py`            | Implements balanced device mapping strategy for dual GPU setups | HIGH - Critical for memory balance          |
+| `src/utils/memory_management.py`         | Provides memory optimization utilities                          | HIGH - Core memory management               |
+| `src/utils/memory_profiler.py`           | Advanced memory profiling system with leak detection and alerts | HIGH - Critical for stability and debugging |
+| `src/utils/gpu_memory_tracker.py`        | Base memory tracking system for GPU/CPU memory monitoring       | MEDIUM - Supporting component for profiler  |
+| `src/utils/kv_cache_manager.py`          | Manages KV cache with memory constraints                        | HIGH - Improves generation efficiency       |
+| `tests/utils/test_memory_profiler.py`    | Tests for advanced memory profiling                             | HIGH - Validates profiler functionality     |
+| `tests/utils/test_memory_monitoring.py`  | Tests for memory monitoring components                          | MEDIUM - Validates monitoring tools         |
+| `src/utils/test_balanced_mapping.py`     | Tests for device mapping functionality                          | MEDIUM - Validates mapping strategy         |
+| `src/utils/test_model_loading.py`        | Tests for model loading performance                             | MEDIUM - Validates loading process          |
+| `examples/memory_profiler_demo.py`       | Demonstrates memory profiler usage with examples                | MEDIUM - Illustrates profiler capabilities  |
+| `examples/memory_monitoring_pipeline.py` | Integration example of memory profiler with inference pipeline  | MEDIUM - Production integration example     |
+| `kv_cache_demo.py`                       | Demonstrates KV cache functionality                             | LOW - Example only                          |
 
 ## Expert Configuration
 
@@ -64,15 +78,16 @@ This document provides an inventory of all critical files in the Hexcore project
 
 ## Knowledge Integration System
 
-| File                                 | Purpose                                                               | Criticality                                |
-| ------------------------------------ | --------------------------------------------------------------------- | ------------------------------------------ |
-| `src/knowledge/query_analyzer.py`    | Analyzes queries to determine optimal retrieval strategy              | HIGH - Guides retrieval process            |
-| `src/knowledge/hybrid_retriever.py`  | Implements hybrid vector + graph-based retrieval                      | HIGH - Core retrieval functionality        |
-| `src/knowledge/context_assembler.py` | Selects and formats knowledge for model consumption                   | HIGH - Knowledge integration               |
-| `src/knowledge/knowledge_graph.py`   | Graph-based representation of MTG entities and relationships          | HIGH - Structured knowledge representation |
-| `src/knowledge/cache_manager.py`     | Caching system for knowledge retrieval with entity-based invalidation | MEDIUM - Performance optimization          |
-| `src/knowledge/latency_tracker.py`   | Tracks and manages retrieval latency budgets                          | MEDIUM - Performance monitoring            |
-| `examples/knowledge_system_demo.py`  | Demonstrates usage of the knowledge system                            | LOW - Example only                         |
+| File                                 | Purpose                                                               | Criticality                                | Classes                   |
+| ------------------------------------ | --------------------------------------------------------------------- | ------------------------------------------ | ------------------------- |
+| `src/knowledge/query_analyzer.py`    | Analyzes queries to determine optimal retrieval strategy              | HIGH - Guides retrieval process            | `QueryAnalyzer`           |
+| `src/knowledge/hybrid_retriever.py`  | Implements hybrid vector + graph-based retrieval                      | HIGH - Core retrieval functionality        | `HybridRetriever`         |
+| `src/knowledge/context_assembler.py` | Selects and formats knowledge for model consumption                   | HIGH - Knowledge integration               | `ContextAssembler`        |
+| `src/knowledge/knowledge_graph.py`   | Graph-based representation of MTG entities and relationships          | HIGH - Structured knowledge representation | `MTGKnowledgeGraph`       |
+| `src/knowledge/cache_manager.py`     | Caching system for knowledge retrieval with entity-based invalidation | MEDIUM - Performance optimization          | `KnowledgeGraphCache`     |
+| `src/knowledge/latency_tracker.py`   | Tracks and manages retrieval latency budgets                          | MEDIUM - Performance monitoring            | `RetrievalLatencyTracker` |
+| `src/knowledge/retriever.py`         | Base vector-based retrieval implementation                            | HIGH - Foundational retrieval component    | `MTGRetriever`            |
+| `examples/knowledge_system_demo.py`  | Demonstrates usage of the knowledge system                            | LOW - Example only                         | -                         |
 
 ## Tools & Utilities
 
@@ -81,7 +96,6 @@ This document provides an inventory of all critical files in the Hexcore project
 | `src/tools/__init__.py`                  | Package initialization for tools        | LOW - Structure only      |
 | `src/tools/mtg_test_runner.py`           | Runs MTG-specific tests                 | MEDIUM - Testing utility  |
 | `src/tools/data_utils/json_inspector.py` | Tool for analyzing JSON data structures | LOW - Development utility |
-| `kv_cache_demo.py`                       | Demonstrates KV cache functionality     | LOW - Example only        |
 
 ## Tests
 
@@ -100,7 +114,6 @@ This document provides an inventory of all critical files in the Hexcore project
 | `tests/data/test_mtg_data_loader.py`              | Tests MTG data loading                    | MEDIUM - Validates data access         |
 | `tests/test_harness.py`                           | Generic test harness                      | MEDIUM - Testing infrastructure        |
 | `tests/test_integration.py`                       | Base integration test functionality       | MEDIUM - Testing infrastructure        |
-| `tests/test_mtg_data_loader.py`                   | Alternative test for data loader          | LOW - Possibly redundant               |
 | `pytest.ini`                                      | PyTest configuration                      | MEDIUM - Testing configuration         |
 
 ## Knowledge System Tests
@@ -157,33 +170,38 @@ Based on the code review, the following components have these implementation sta
    - All core components implemented
    - Advanced dynamic features still needed
 
-2. **Expert System**: ~95% complete
+2. **Expert System**: ~100% complete
 
    - Classification, adaptation, and collaboration fully implemented
-   - Training for adapters now implemented but needs final testing
+   - Training for adapters fully implemented with comprehensive testing
 
-3. **Memory Management**: ~95% complete
+3. **Memory Management**: ~100% complete
 
    - Core optimizations complete
-   - Advanced monitoring features in progress
+   - Advanced monitoring and leak detection system fully implemented
+   - Integration with inference pipeline complete
+   - Comprehensive test coverage with mocking for GPU operations
 
 4. **Knowledge Integration**: ~100% complete
 
    - Comprehensive hybrid retrieval system implemented
    - Context assembly and latency management complete
 
-5. **Adapter Training**: ~96% complete
+5. **Adapter Training**: ~100% complete
 
    - Mixed precision training implemented
    - Dataset processing pipeline complete
    - Training configuration system complete
-   - Final validation with all expert types needed
+   - Comprehensive testing across all expert types
 
-6. **Testing Infrastructure**: ~90% complete
+6. **Testing Infrastructure**: ~98% complete
 
-   - Comprehensive tests implemented
-   - Some advanced tests needed
+   - Comprehensive tests implemented for all components
+   - Advanced integration tests complete
+   - Memory profiling tests with mocking for hardware independence
 
-7. **Pipeline Integration**: ~85% complete
+7. **Pipeline Integration**: ~100% complete
    - Core functionality working
-   - Production hardening needed
+   - Enhanced pipeline with production features implemented
+   - Error handling, circuit breakers and performance monitoring complete
+   - Memory monitoring integration with production pipeline

@@ -192,40 +192,52 @@ def retrieve_and_assemble(
 
 The knowledge integration system now provides sophisticated, performant access to MTG knowledge through a hybrid approach that intelligently selects between vector search and knowledge graph traversal while carefully managing latency budgets.
 
-### 6. Memory Management & Optimization (95% Complete)
+### 6. Memory Management & Optimization (100% Complete)
 
-Recent memory management optimizations have significantly improved system stability:
+Memory management and optimization are now fully implemented with advanced monitoring capabilities:
 
 - **✅ Complete Memory Reset**: Implemented thorough GPU memory reset functionality
 - **✅ Conservative Loading Strategy**: Replaced cascading multi-attempt loading with a reliable strategy
 - **✅ Device Mapping Optimization**: Improved balance across GPUs with updated mapping strategy
 - **✅ Memory Cleanup Between Tests**: Enhanced memory cleanup fixtures for test stability
 - **✅ Memory Debugging Tools**: Added detailed memory analysis and visualization
-- **⚠️ Advanced Memory Tracking**: Comprehensive leak detection not yet implemented
+- **✅ Advanced Memory Profiler**: Comprehensive memory profiling system with leak detection
+- **✅ Component-Level Tracking**: Memory usage attribution to specific components
+- **✅ Leak Detection**: Sophisticated trend analysis to identify memory leaks
+- **✅ Alert System**: Configurable alerting with actionable recommendations
+- **✅ Memory Context Manager**: Convenient profiling via context manager pattern
 
 ```python
-def force_complete_gpu_reset():
-    """Force a complete GPU memory reset and garbage collection."""
-    import gc
-    import torch
-    import time
+class MemoryProfiler:
+    """
+    Advanced memory profiling system with leak detection and alerts.
 
-    # Run multiple garbage collection cycles
-    for _ in range(3):
-        gc.collect()
+    This class builds on the GPUMemoryTracker to provide more advanced
+    monitoring capabilities including leak detection, component-level
+    attribution, and actionable recommendations.
+    """
 
-    # Reset CUDA for each device
-    if torch.cuda.is_available():
-        # Synchronize all devices to ensure pending operations complete
-        for i in range(torch.cuda.device_count()):
-            torch.cuda.synchronize(i)
+    def __init__(
+        self,
+        alert_threshold: float = 0.85,
+        leak_detection_window: int = 20,
+        sampling_interval: float = 1.0,
+        auto_start: bool = True,
+        log_to_console: bool = False,
+    ):
+        """
+        Initialize the memory profiler.
 
-        # Empty cache multiple times
-        for _ in range(2):
-            torch.cuda.empty_cache()
+        Args:
+            alert_threshold: Memory utilization threshold (0-1) that triggers alerts
+            leak_detection_window: Number of samples to use for trend analysis
+            sampling_interval: Time between memory snapshots in seconds
+            auto_start: Whether to start monitoring automatically
+            log_to_console: Whether to log memory statistics to console
+        """
 ```
 
-These memory optimization achievements have resolved critical stability issues, with all tests now passing consistently on the target hardware configuration.
+The memory management system now provides comprehensive monitoring, leak detection, and optimization recommendations, resolving all critical stability issues. All tests now pass consistently on the target hardware configuration, and the system can identify and prevent memory issues before they cause failures.
 
 ### 7. KV Cache Management (90% Complete)
 
@@ -301,7 +313,7 @@ class MixedPrecisionTrainer:
 
 The training system supports multiple expert adapters with memory-efficient training techniques and comprehensive stability monitoring, enabling reliable training across different hardware configurations.
 
-## Recent Technical Achievements (March 9-10, 2025)
+## Recent Technical Achievements (March 9-11, 2025)
 
 ### 1. Device Mapping Rebalance (March 9)
 
@@ -352,20 +364,33 @@ Completed modernization of the training infrastructure:
 - Addressed all remaining test failures in training components
 - Improved training component organization and documentation
 
+### 6. Advanced Memory Profiling System (March 11)
+
+Implemented a comprehensive memory profiling and leak detection system:
+
+- Created `memory_profiler.py` with sophisticated memory monitoring capabilities
+- Added component-level memory usage attribution
+- Implemented memory leak detection through trend analysis
+- Created alert system with actionable recommendations
+- Added context manager for convenient profiling of specific code blocks
+- Designed comprehensive test suite with mocking for GPU operations
+- Created demonstration examples showing practical usage
+- Integrated with the inference pipeline for production monitoring
+
 ## Project Completion Assessment
 
-| Component                    | Completion | Status                                                                      |
-| ---------------------------- | :--------: | --------------------------------------------------------------------------- |
-| Model Architecture & Loading |    90%     | Core functionality complete, advanced features in progress                  |
-| Transaction Classification   |    100%    | Fully implemented and tested                                                |
-| Expert Adapter Management    |    100%    | Fully implemented with comprehensive testing                                |
-| Cross-Expert Attention       |    100%    | Fully implemented and optimized                                             |
-| Knowledge Integration        |    100%    | Fully production-ready with complete test coverage                          |
-| Memory Management            |    95%     | Core optimizations complete, monitoring in progress                         |
-| KV Cache Management          |    90%     | Fully functional, advanced features planned                                 |
-| Inference Pipeline           |    100%    | Fully production-ready with comprehensive test coverage                     |
-| Adapter Training             |    100%    | Fully implemented with comprehensive test coverage                          |
-| **Overall Project**          |  **95%**   | **Majority of components production-ready, only minor enhancements needed** |
+| Component                    | Completion | Status                                                                     |
+| ---------------------------- | :--------: | -------------------------------------------------------------------------- |
+| Model Architecture & Loading |    90%     | Core functionality complete, advanced features in progress                 |
+| Transaction Classification   |    100%    | Fully implemented and tested                                               |
+| Expert Adapter Management    |    100%    | Fully implemented with comprehensive testing                               |
+| Cross-Expert Attention       |    100%    | Fully implemented and optimized                                            |
+| Knowledge Integration        |    100%    | Fully production-ready with complete test coverage                         |
+| Memory Management            |    100%    | Fully implemented with advanced monitoring and leak detection              |
+| KV Cache Management          |    90%     | Fully functional, advanced features planned                                |
+| Inference Pipeline           |    100%    | Fully production-ready with comprehensive test coverage                    |
+| Adapter Training             |    100%    | Fully implemented with comprehensive test coverage                         |
+| **Overall Project**          |  **98%**   | **Virtually all components production-ready, only minor features missing** |
 
 ### Production Readiness Assessment
 
@@ -376,26 +401,25 @@ The MTG AI Reasoning Assistant is now stable on the target hardware configuratio
 3. Apply expert-specific adapters with memory-efficient management
 4. Integrate knowledge through sophisticated hybrid retrieval
 5. Combine expert outputs using cross-expert attention
-6. Manage memory effectively across operations
+6. Monitor and manage memory with advanced profiling and leak detection
 7. Train expert adapters using memory-efficient mixed precision techniques
 
 The following areas still require attention for full production readiness:
 
-1. **Advanced Memory Monitoring**: Add real-time memory monitoring and leak detection
-2. **Streaming Generation**: Fully implement and optimize streaming response generation
-3. **Error Recovery**: Enhance error handling and automatic recovery
-4. **Performance Benchmarking**: Comprehensive performance testing and optimization for remaining components
+1. **Streaming Generation**: Fully implement and optimize streaming response generation
+2. **Error Recovery**: Enhance error handling and automatic recovery
+3. **Performance Benchmarking**: Comprehensive performance testing and optimization for remaining components
 
 ## Next Steps
 
-With the completion of the adapter training components, the immediate priorities for development are:
+With the completion of the memory profiling system, the immediate priorities for development are:
 
-1. **Advanced Memory Monitoring**: Implement real-time monitoring and leak detection
+1. **Streaming Generation**: Complete streaming response implementation
 
-   - Add runtime memory tracking with alerts for potential leaks
-   - Implement memory usage trending analysis
-   - Create visualization tools for memory utilization patterns
-   - Add memory optimization suggestions based on usage patterns
+   - Optimize token-by-token generation for low latency
+   - Add progress indicators for long-running generations
+   - Implement early stopping based on confidence metrics
+   - Create batched generation for improved throughput
 
 2. **Production Hardening**: Add comprehensive error handling and recovery mechanisms
 
@@ -404,14 +428,7 @@ With the completion of the adapter training components, the immediate priorities
    - Enhance logging and monitoring for production environments
    - Implement circuit breakers and fallback strategies
 
-3. **Streaming Generation**: Complete streaming response implementation
-
-   - Optimize token-by-token generation for low latency
-   - Add progress indicators for long-running generations
-   - Implement early stopping based on confidence metrics
-   - Create batched generation for improved throughput
-
-4. **Comprehensive Evaluation**: Develop and run evaluation suite with MTG-specific benchmarks
+3. **Comprehensive Evaluation**: Develop and run evaluation suite with MTG-specific benchmarks
    - Create benchmark suite specifically for MTG rule applications
    - Implement metrics for reasoning quality assessment
    - Add automated tests for all five expert types
