@@ -153,3 +153,5 @@ card_cache/
 rules_cache/
 knowledge_graph/
 vector_store/
+data/ # Large Files
+data/cards.json
