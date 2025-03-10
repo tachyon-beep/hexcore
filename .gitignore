@@ -155,6 +155,7 @@ knowledge_graph/
 vector_store/
 data/ # Large Files
 data/cards.json
+to_be_deleted/
 
 # Training Logs
 *.log

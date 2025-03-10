@@ -1,158 +1,84 @@
-# Implementation Plan for Professionalization and Hardening
+# Integrated Professionalization and Hardening Plan
 
-NOT TO BE IMPLEMENTED UNTIL ALL OTHER PLANNED WORK PACKAGES ARE COMPLETED.
+This document outlines the professionalization and hardening activities to be incorporated throughout the Hexcore development process. Rather than being postponed until after all features are complete, these activities will be integrated into each development phase to maintain code quality and reduce technical debt.
 
-## 1. Code Consolidation and Cleanup
+## Implementation Philosophy
 
-First, let's identify and eliminate duplicate or unnecessary code:
+The professionalization process will follow these key principles:
 
-```python
-def consolidate_codebase():
-    """
-    Steps to consolidate the codebase:
-    1. Identify and remove duplicate functionality
-    2. Standardize interfaces between components
-    3. Create clear boundaries between modules
-    """
-    # Steps for implementation:
+1. **Incremental Improvement**: Apply code quality improvements progressively alongside feature development
+2. **Test-Driven Refactoring**: Create comprehensive tests before refactoring any component
+3. **User-Centered Documentation**: Focus documentation on both developer and end-user needs
+4. **MTG-Specific Structure**: Organize code and documentation around MTG domain concepts
 
-    # 1. Analyze current codebase structure
-    # - Map dependencies between modules
-    # - Identify overlapping functionality
+## Phase 1: Core Quality Foundations
 
-    # 2. Consolidate overlapping components
-    # - Merge similar utility functions
-    # - Create standardized interfaces
-    # - Update import references
+These initial quality improvements will be applied during Phase 1 of the development roadmap:
 
-    # 3. Remove deprecated or unused code
-    # - Run code coverage analysis
-    # - Identify dead code paths
-    # - Document removal decisions
-```
-
-### Implementation Strategy
-
-Let's look at specific parts of your codebase to consolidate:
-
-1. **Pipeline Consolidation**:
-
-   - You have both `pipeline.py` and `enhanced_pipeline.py` in your inference directory
-   - Create a single unified pipeline that includes all needed features
-
-2. **Utility Function Consolidation**:
-   - Create a centralized utilities module
-   - Move common functions (device management, tensor operations, etc.)
-
-Here's an example structure for the consolidated codebase:
-
-```
-src/
-├── __init__.py
-├── data/              # Data loading and management
-├── inference/         # Single unified inference pipeline
-├── knowledge/         # Knowledge retrieval system
-├── models/            # Model definitions and expert management
-├── training/          # Training pipeline
-└── utils/             # Centralized utilities
-    ├── __init__.py
-    ├── device.py      # Device management and optimization
-    ├── logging.py     # Standardized logging
-    ├── memory.py      # Memory management
-    ├── tensor.py      # Tensor operations
-    └── validation.py  # Input and output validation
-```
-
-## 2. Standardized Pipeline Implementation
-
-Let's create a single, well-documented pipeline that combines the best aspects of your current implementations:
+### 1.1 Error Handling Framework
 
 ```python
-class HexcorePipeline:
-    """
-    Unified inference pipeline for the Hexcore MTG AI system.
+from typing import Optional, Dict, Any, Union, Tuple
 
-    This pipeline integrates all necessary components:
-    - Expert routing via transaction classification
-    - Memory-optimized model execution
-    - Knowledge retrieval and integration
-    - Cross-expert collaboration
-    - Optimized generation with KV caching
+# Define a MTG-specific error hierarchy
+class HexcoreError(Exception):
+    """Base class for Hexcore-specific exceptions with MTG context."""
 
-    Attributes:
-        model (PreTrainedModel): Base language model
-        tokenizer (PreTrainedTokenizer): Model tokenizer
-        expert_manager (ExpertAdapterManager): Manages expert adapters
-        knowledge_retriever (HybridRetriever): Retrieves MTG knowledge
-        classifier (TransactionClassifier): Routes queries to experts
-        cross_expert (CrossExpertAttention): Handles expert collaboration
-        kv_cache_manager (KVCacheManager): Manages KV cache
-    """
+    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None):
+        self.message = message
+        self.context = context or {}
+        super().__init__(message)
 
-    def __init__(
-        self,
-        model_path="mistralai/Mixtral-8x7B-v0.1",
-        expert_adapters_dir="adapters",
-        device_map="auto",
-        quantization_type="4bit",
-        max_memory=None,
-        knowledge_db_path=None,
-        enable_memory_optimization=True,
-    ):
-        """
-        Initialize the Hexcore pipeline.
+# Domain-specific errors
+class RuleProcessingError(HexcoreError):
+    """Error in MTG rule application or interpretation."""
+    pass
 
-        Args:
-            model_path: Path to base model
-            expert_adapters_dir: Directory with expert adapters
-            device_map: Device mapping strategy
-            quantization_type: Type of quantization (4bit or 8bit)
-            max_memory: Maximum memory allocation
-            knowledge_db_path: Path to knowledge database
-            enable_memory_optimization: Whether to enable memory optimization
-        """
-        # Implementation details...
+class ExpertAdapterError(HexcoreError):
+    """Error related to expert adapters."""
+    pass
 
-    def generate(
-        self,
-        query,
-        max_new_tokens=1024,
-        temperature=0.7,
-        use_multiple_experts=True,
-        latency_budget_ms=None,
-        memory_budget_mb=None,
-        **generation_kwargs
-    ):
-        """
-        Generate a response to the query.
+class KnowledgeRetrievalError(HexcoreError):
+    """Error related to MTG knowledge retrieval."""
+    pass
 
-        Args:
-            query: User query text
-            max_new_tokens: Maximum new tokens to generate
-            temperature: Sampling temperature
-            use_multiple_experts: Whether to use multiple experts
-            latency_budget_ms: Maximum latency in milliseconds
-            memory_budget_mb: Maximum memory usage in MB
-            **generation_kwargs: Additional kwargs for generation
+class MemoryError(HexcoreError):
+    """Error related to memory management."""
+    pass
 
-        Returns:
-            Dictionary with response and metadata
-        """
-        # Implementation details...
+# Example usage with graceful fallback
+def safe_rule_processing(rule_id: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    """Apply MTG rules with proper error handling."""
+    try:
+        return rules_engine.process_rule(rule_id, context)
+    except Exception as e:
+        # Log detailed information
+        logger.error(f"Rule processing failed for rule {rule_id}: {str(e)}")
+
+        # Return fallback with error info
+        return {
+            "result": "error",
+            "error_type": "rule_processing",
+            "rule_id": rule_id,
+            "error_message": str(e),
+            "fallback_applied": True,
+            "fallback_result": rules_engine.get_default_ruling(rule_id)
+        }
 ```
 
-This unified pipeline should have thorough documentation and clear interfaces. The implementation should enforce constraints (device compatibility, memory limits) and provide helpful error messages.
+### 1.2 Type Annotations for Core Components
 
-## 3. Type Annotations and Error Handling
-
-Let's standardize type annotations and error handling throughout the codebase:
+Apply comprehensive type annotations to all critical path components:
 
 ```python
 from typing import Dict, List, Optional, Union, Tuple, Any, Callable, TypeVar, cast
+import torch
+from torch import nn, Tensor
+from transformers import PreTrainedModel, PreTrainedTokenizer
 
 # Example of properly annotated function
 def apply_expert_adapter(
-    model: "PreTrainedModel",
+    model: PreTrainedModel,
     expert_type: str,
     adapter_path: Optional[str] = None,
     device: Optional[Union[str, torch.device]] = None
@@ -162,7 +88,7 @@ def apply_expert_adapter(
 
     Args:
         model: Base language model
-        expert_type: Type of expert to apply
+        expert_type: Expert type to apply
         adapter_path: Optional path to adapter weights
         device: Optional device to place adapter on
 
@@ -175,70 +101,171 @@ def apply_expert_adapter(
     except RuntimeError as e:
         # Handle runtime errors (device issues, memory issues)
         return False, f"Runtime error applying {expert_type} adapter: {str(e)}"
-    except ValueError as e:
-        # Handle value errors (invalid expert type, missing adapter)
-        return False, f"Invalid input for {expert_type} adapter: {str(e)}"
-    except Exception as e:
-        # Fallback for other errors
-        return False, f"Unexpected error applying {expert_type} adapter: {str(e)}"
 ```
 
-### Standardized Error Handling
-
-Create a consistent error handling approach:
+### 1.3 MTG-Specific Logging Structure
 
 ```python
-class HexcoreError(Exception):
-    """Base class for Hexcore-specific exceptions."""
-    pass
+import logging
+from typing import Optional, Dict, Any
 
-class ExpertAdapterError(HexcoreError):
-    """Error related to expert adapters."""
-    pass
+class MTGLogger:
+    """Logger with MTG-specific structure and context."""
 
-class KnowledgeRetrievalError(HexcoreError):
-    """Error related to knowledge retrieval."""
-    pass
+    # Categories specific to MTG domain
+    CATEGORIES = {
+        "RULES": "Rules application and interpretation",
+        "CARDS": "Card information and interactions",
+        "EXPERTS": "Expert module operations",
+        "MEMORY": "Memory management operations",
+        "KNOWLEDGE": "Knowledge retrieval operations"
+    }
 
-class MemoryError(HexcoreError):
-    """Error related to memory management."""
-    pass
+    def __init__(self, name: str, level: int = logging.INFO):
+        """Initialize with MTG-specific configuration."""
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
 
-class DeviceMappingError(HexcoreError):
-    """Error related to device mapping."""
-    pass
+        # Create MTG-specific formatter with category field
+        formatter = logging.Formatter(
+            '%(asctime)s [%(levelname)s] [%(category)s] %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
 
-# Example usage
-def safe_knowledge_retrieval(query: str) -> Dict[str, Any]:
-    """Safely retrieve knowledge with proper error handling."""
-    try:
-        return retriever.retrieve(query)
-    except Exception as e:
-        # Graceful fallback
-        logger.error(f"Knowledge retrieval failed: {str(e)}")
-        # Return empty result with error info
-        return {
-            "results": [],
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "fallback_applied": True
-        }
+        # Add console handler
+        console = logging.StreamHandler()
+        console.setFormatter(formatter)
+        self.logger.addHandler(console)
+
+    def log(self, level: int, category: str, message: str, context: Optional[Dict[str, Any]] = None):
+        """Log with MTG-specific category and context."""
+        # Validate category is a known MTG category
+        if category not in self.CATEGORIES:
+            category = "GENERAL"
+
+        # Add extra fields for the formatter
+        extra = {"category": category}
+
+        # Format context information if provided
+        if context:
+            context_str = ", ".join(f"{k}={v}" for k, v in context.items())
+            message = f"{message} [Context: {context_str}]"
+
+        self.logger.log(level, message, extra=extra)
+
+    # Convenience methods for MTG-specific categories
+    def rules(self, message: str, context: Optional[Dict[str, Any]] = None, level: int = logging.INFO):
+        """Log rules-related information."""
+        self.log(level, "RULES", message, context)
+
+    def cards(self, message: str, context: Optional[Dict[str, Any]] = None, level: int = logging.INFO):
+        """Log card-related information."""
+        self.log(level, "CARDS", message, context)
+
+    def experts(self, message: str, context: Optional[Dict[str, Any]] = None, level: int = logging.INFO):
+        """Log expert-related information."""
+        self.log(level, "EXPERTS", message, context)
 ```
 
-## 4. Package Structure and Requirements
+## Phase 2: Incremental Refactoring & Package Structure
 
-Let's update the package structure to follow best practices:
+These improvements will be integrated during Phase 2 of the development roadmap:
 
-### setup.py Improvements
+### 2.1 Evolved Package Structure
+
+```text
+hexcore/
+├── pyproject.toml
+├── README.md
+├── LICENSE
+├── setup.py
+├── requirements.txt
+├── src/
+│   └── hexcore/
+│       ├── __init__.py
+│       ├── mtg/                 # MTG-specific domain logic
+│       │   ├── __init__.py
+│       │   ├── rules/           # Rules engine and processing
+│       │   ├── cards/           # Card data and interactions
+│       │   └── formats/         # Format-specific logic
+│       ├── experts/             # Expert module management
+│       │   ├── __init__.py
+│       │   ├── adapters/        # Expert adapter management
+│       │   ├── cross_expert/    # Expert collaboration
+│       │   └── transaction/     # Transaction routing
+│       ├── knowledge/           # Knowledge integration
+│       │   ├── __init__.py
+│       │   ├── graph/           # Knowledge graph components
+│       │   ├── retrieval/       # Retrieval components
+│       │   └── assembly/        # Context assembly
+│       ├── inference/           # Inference pipeline
+│       ├── training/            # Training components
+│       └── utils/               # Utilities
+│           ├── __init__.py
+│           ├── memory/          # Memory management
+│           ├── device/          # Device management
+│           └── logging/         # Logging utilities
+├── tests/
+│   └── ...
+└── docs/
+    └── ...
+```
+
+### 2.2 Test Migration Strategy
+
+For each component being refactored, follow this process:
+
+1. **Create Integration Tests**: Before refactoring, create high-level tests that verify component behavior
+2. **Maintain Test Compatibility**: Update tests alongside code changes
+3. **Validate Behavior Preservation**: Ensure identical behavior before/after changes
+
+```python
+# Example test migration pattern
+# Step 1: Create integration test for existing functionality
+def test_expert_routing_behavior_before_refactor():
+    """Capture existing expert routing behavior before refactoring."""
+    # Arrange
+    query = "How does Lightning Bolt interact with Hexproof?"
+    expected_experts = ["REASON", "EXPLAIN"]
+
+    # Act
+    classifier = TransactionClassifier.load_from_pretrained(MODEL_PATH)
+    result = classifier.classify(query)
+    selected_experts = [expert for expert, conf in result.items() if conf > 0.5]
+
+    # Assert
+    assert set(selected_experts) == set(expected_experts)
+
+    # Store result for comparison after refactoring
+    with open("test_artifacts/expert_routing_results.json", "w") as f:
+        json.dump(result, f, indent=2)
+
+# Step 2: After refactoring, verify identical behavior
+def test_expert_routing_behavior_after_refactor():
+    """Verify expert routing behavior after refactoring matches previous behavior."""
+    # Arrange
+    query = "How does Lightning Bolt interact with Hexproof?"
+    with open("test_artifacts/expert_routing_results.json", "r") as f:
+        expected_results = json.load(f)
+
+    # Act
+    # Use refactored classifier with new package structure
+    from hexcore.experts.transaction import ExpertRouter
+    classifier = ExpertRouter.load_from_pretrained(MODEL_PATH)
+    result = classifier.classify(query)
+
+    # Assert
+    for expert, expected_conf in expected_results.items():
+        assert abs(result.get(expert, 0) - expected_conf) < 0.01
+```
+
+### 2.3 Enhanced setup.py with MTG-Specific Metadata
 
 ```python
 from setuptools import setup, find_packages
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
-
-with open("requirements.txt", "r", encoding="utf-8") as f:
-    requirements = f.read().splitlines()
 
 setup(
     name="hexcore",
@@ -255,6 +282,7 @@ setup(
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
+        "Topic :: Games/Entertainment :: Board Games",  # Added for MTG relevance
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",
@@ -262,7 +290,15 @@ setup(
         "Programming Language :: Python :: 3.10",
     ],
     python_requires=">=3.8",
-    install_requires=requirements,
+    install_requires=[
+        "torch>=2.0.0",
+        "transformers>=4.30.0",
+        "bitsandbytes>=0.40.0",
+        "accelerate>=0.20.0",
+        "peft>=0.4.0",
+        "networkx>=2.8.0",
+        "faiss-cpu>=1.7.4",
+    ],
     extras_require={
         "dev": [
             "black",
@@ -272,415 +308,227 @@ setup(
             "pytest",
             "pytest-cov",
         ],
+        "mtg": [  # MTG-specific extras
+            "scryfall", # For card data retrieval
+            "mtgsdk",   # Alternative MTG data source
+        ],
     },
     entry_points={
         "console_scripts": [
             "hexcore=hexcore.cli:main",
+            "mtg-analyze=hexcore.mtg.cli:analyze_command",  # MTG-specific command
+            "mtg-rules=hexcore.mtg.cli:rules_command",     # MTG-specific command
         ],
     },
 )
 ```
 
-### requirements.txt Updates
+## Phase 3: Production Readiness & Documentation
 
-```
-# Core dependencies
-torch>=2.0.0
-transformers>=4.30.0
-bitsandbytes>=0.40.0
-accelerate>=0.20.0
-peft>=0.4.0
-networkx>=2.8.0
-faiss-cpu>=1.7.4
-numpy>=1.24.0
-tqdm>=4.65.0
-pandas>=2.0.0
-scikit-learn>=1.2.0
+These improvements will be integrated during Phase 3 of the development roadmap:
 
-# Optional dependencies
-sentencepiece>=0.1.99
-datasets>=2.12.0
-wandb>=0.15.4
-
-# Web server and API
-fastapi>=0.100.0
-uvicorn>=0.22.0
-pydantic>=2.0.0
-
-# Development and testing
-pytest>=7.3.1
-black>=23.3.0
-isort>=5.12.0
-mypy>=1.3.0
-flake8>=6.0.0
-```
-
-### Package Structure
-
-Reorganize to create a proper importable package:
-
-```
-hexcore/
-├── pyproject.toml
-├── README.md
-├── LICENSE
-├── setup.py
-├── requirements.txt
-├── src/
-│   └── hexcore/
-│       ├── __init__.py
-│       ├── data/
-│       ├── inference/
-│       ├── knowledge/
-│       ├── models/
-│       ├── training/
-│       └── utils/
-├── tests/
-│   └── ...
-├── scripts/
-│   └── ...
-└── docs/
-    └── ...
-```
-
-Add version tracking:
+### 3.1 MTG-Specific CLI Interface
 
 ```python
-# src/hexcore/__init__.py
-__version__ = "0.1.0"
-```
-
-## 5. Code Quality Tools Integration
-
-Let's integrate standard Python code quality tools:
-
-### pyproject.toml
-
-```toml
-[build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[tool.black]
-line-length = 110
-target-version = ['py38', 'py39', 'py310']
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-)/
-'''
-
-[tool.isort]
-profile = "black"
-line_length = 110
-multi_line_output = 3
-
-[tool.mypy]
-python_version = "3.8"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-
-[[tool.mypy.overrides]]
-module = [
-    "transformers.*",
-    "torch.*",
-    "networkx.*",
-    "faiss.*",
-    "tqdm.*"
-]
-ignore_missing_imports = true
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = "test_*.py"
-addopts = "--cov=hexcore"
-```
-
-### Linting Scripts
-
-Create a script to run all linting tools:
-
-```python
-# scripts/lint.py
-#!/usr/bin/env python3
-"""Run all linters on the codebase."""
-import subprocess
-import sys
+# hexcore/mtg/cli.py
+import argparse
+import json
 from pathlib import Path
+from typing import Dict, Any, List, Optional
 
-# Find project root
-PROJECT_ROOT = Path(__file__).parent.parent.absolute()
-SRC_DIR = PROJECT_ROOT / "src" / "hexcore"
-TESTS_DIR = PROJECT_ROOT / "tests"
+from hexcore.inference import HexcorePipeline
+from hexcore.mtg.formats import Format
 
-def run_command(cmd, description):
-    """Run a command and print its output."""
-    print(f"Running {description}...")
-    result = subprocess.run(cmd, capture_output=True, text=True)
+def analyze_command():
+    """CLI command for analyzing MTG scenarios."""
+    parser = argparse.ArgumentParser(description="Analyze MTG scenarios and rules interactions")
 
-    if result.returncode == 0:
-        print(f"✅ {description} passed")
-        if result.stdout.strip():
-            print(result.stdout)
+    # MTG-specific command line arguments
+    parser.add_argument("--query", "-q", type=str, help="Question or scenario to analyze")
+    parser.add_argument("--format", "-f", type=str, default="standard",
+                        choices=["standard", "modern", "legacy", "commander", "limited"],
+                        help="MTG format context for the analysis")
+    parser.add_argument("--expert", "-e", type=str,
+                        choices=["reason", "explain", "teach", "predict", "retrospect"],
+                        help="Expert mode to use (default: auto-detect)")
+    parser.add_argument("--cards", "-c", type=str, nargs="+",
+                        help="Specific cards to consider in the analysis")
+    parser.add_argument("--output", "-o", type=str, help="Output file for results")
+
+    args = parser.parse_args()
+
+    # Initialize the pipeline
+    pipeline = HexcorePipeline()
+
+    # Convert format string to enum
+    mtg_format = Format[args.format.upper()]
+
+    # Prepare additional context
+    context = {
+        "format": mtg_format.value,
+    }
+
+    if args.cards:
+        # Fetch card data and add to context
+        context["cards"] = fetch_card_data(args.cards)
+
+    # Process the query
+    result = pipeline.generate(
+        query=args.query,
+        expert_type=args.expert.upper() if args.expert else None,
+        additional_context=context
+    )
+
+    # Output handling
+    if args.output:
+        with open(args.output, "w") as f:
+            json.dump(result, f, indent=2)
     else:
-        print(f"❌ {description} failed")
-        print(result.stdout)
-        print(result.stderr)
-        return False
+        # Pretty print the result
+        print("\n" + "=" * 80)
+        print(result["response"])
+        print("=" * 80 + "\n")
+        print(f"Expert(s) used: {', '.join(result['experts_used'])}")
+        print(f"Confidence: {result['confidence']:.2f}")
+        print(f"Processing time: {result['processing_time_ms']:.0f}ms")
 
-    return True
+def rules_command():
+    """CLI command for MTG rules lookup and interpretation."""
+    # Implementation similar to analyze_command
+    pass
 
-def main():
-    """Run all linters."""
-    success = True
-
-    # Run black
-    success &= run_command(
-        ["black", "--check", SRC_DIR, TESTS_DIR],
-        "black code formatting"
-    )
-
-    # Run isort
-    success &= run_command(
-        ["isort", "--check", SRC_DIR, TESTS_DIR],
-        "isort import sorting"
-    )
-
-    # Run flake8
-    success &= run_command(
-        ["flake8", SRC_DIR, TESTS_DIR],
-        "flake8 linting"
-    )
-
-    # Run mypy
-    success &= run_command(
-        ["mypy", SRC_DIR],
-        "mypy type checking"
-    )
-
-    if not success:
-        sys.exit(1)
-
-if __name__ == "__main__":
-    main()
+def fetch_card_data(card_names: List[str]) -> List[Dict[str, Any]]:
+    """Fetch card data from Scryfall or local database."""
+    # Implementation to retrieve card data
+    pass
 ```
 
-## 6. Documentation Generation
+### 3.2 Comprehensive Documentation Structure
 
-Let's implement comprehensive documentation:
+Create an expanded documentation structure with MTG-specific organization:
 
-### Documentation Structure
-
-```
+```text
 docs/
 ├── index.md                  # Main documentation page
 ├── installation.md           # Installation instructions
 ├── quickstart.md             # Getting started guide
 ├── api/                      # API reference
-│   ├── models.md             # Model documentation
+│   ├── pipeline.md           # Inference pipeline documentation
+│   ├── experts.md            # Expert documentation
 │   ├── knowledge.md          # Knowledge system documentation
-│   └── inference.md          # Inference pipeline documentation
+│   └── training.md           # Training documentation
+├── mtg/                      # MTG-specific documentation
+│   ├── reasoning_modes.md    # Guide to reasoning modes (REASON, EXPLAIN, etc.)
+│   ├── rules_handling.md     # How to use the rules interpretation features
+│   ├── card_interactions.md  # Documentation on card interaction analysis
+│   └── formats.md            # Format-specific analysis features
 ├── guides/                   # User guides
-│   ├── expert_modes.md       # Guide to expert modes
 │   ├── memory_optimization.md # Memory optimization guide
-│   └── custom_adapters.md    # Creating custom adapters
+│   ├── custom_adapters.md    # Creating custom adapters
+│   └── knowledge_extension.md # Extending the knowledge system
 └── development/              # Developer documentation
     ├── architecture.md       # System architecture
     ├── contributing.md       # Contribution guidelines
     └── testing.md            # Testing guide
 ```
 
-### Documentation Generation with MkDocs
+### 3.3 Performance Optimization Documentation
 
-Install MkDocs and set up automatic documentation generation:
+Create detailed documentation on performance optimization:
+
+````markdown
+# MTG AI Assistant Performance Optimization Guide
+
+This guide provides recommendations for optimizing the Hexcore system for various hardware configurations, with a focus on memory management and inference performance.
+
+## Hardware Configurations
+
+### Recommended Setup
+
+- **GPU**: 2x GPUs with 16GB VRAM each
+- **CPU**: 8+ cores
+- **RAM**: 32GB+
+- **Disk**: SSD with 20GB+ free space
+
+### Minimum Requirements
+
+- **GPU**: 1x GPU with 16GB VRAM
+- **CPU**: 4+ cores
+- **RAM**: 16GB
+- **Disk**: 10GB free space
+
+## Memory Optimization
+
+### Quantization Settings
+
+The system supports different quantization levels that trade off precision for memory efficiency:
+
+| Quantization | VRAM Usage | Quality Impact | Use Case                         |
+| ------------ | ---------- | -------------- | -------------------------------- |
+| None (FP16)  | ~30GB      | None           | High-end setups with 40GB+ VRAM  |
+| 8-bit        | ~15GB      | Minimal        | Good balance for 24GB setups     |
+| 4-bit        | ~8GB       | Moderate       | Memory-constrained setups (16GB) |
+
+### Expert Loading Strategies
+
+Choose the expert loading strategy based on your needs:
+
+| Strategy    | Description                         | Memory Usage | Performance      |
+| ----------- | ----------------------------------- | ------------ | ---------------- |
+| All Experts | Load all expert adapters at startup | Higher       | Faster switching |
+| On-Demand   | Load experts as needed              | Lower        | Slower first use |
+| Hybrid      | Keep frequently used experts loaded | Medium       | Balanced         |
+
+Configure your expert loading strategy in `config.yaml`:
 
 ```yaml
-# mkdocs.yml
-site_name: Hexcore Documentation
-site_description: Documentation for the MTG AI Reasoning Assistant
-site_author: Vren, the Relentless
-repo_url: https://github.com/tachyon-beep/hexcore
-
-theme:
-  name: material
-  palette:
-    primary: indigo
-    accent: purple
-  features:
-    - navigation.tabs
-    - navigation.sections
-    - toc.integrate
-    - search.suggest
-    - search.highlight
-
-markdown_extensions:
-  - pymdownx.highlight
-  - pymdownx.superfences
-  - pymdownx.inlinehilite
-  - pymdownx.tabbed
-  - pymdownx.arithmatex
-  - admonition
-  - toc:
-      permalink: true
-
-nav:
-  - Home: index.md
-  - Installation: installation.md
-  - Quickstart: quickstart.md
-  - API Reference:
-      - Models: api/models.md
-      - Knowledge: api/knowledge.md
-      - Inference: api/inference.md
-  - User Guides:
-      - Expert Modes: guides/expert_modes.md
-      - Memory Optimization: guides/memory_optimization.md
-      - Custom Adapters: guides/custom_adapters.md
-  - Development:
-      - Architecture: development/architecture.md
-      - Contributing: development/contributing.md
-      - Testing: development/testing.md
-
-plugins:
-  - search
-  - mkdocstrings:
-      handlers:
-        python:
-          selection:
-            inherited_members: true
-          rendering:
-            show_source: true
-            heading_level: 3
+expert_loading:
+  strategy: "hybrid" # "all", "on_demand", or "hybrid"
+  preload_experts: ["REASON", "EXPLAIN"] # Always keep these loaded
+  max_cached_experts: 3 # Maximum number of inactive experts to keep in memory
 ```
-
-### Generate API Documentation Automatically
-
-Create a script to generate API documentation from docstrings:
-
-````python
-# scripts/generate_docs.py
-#!/usr/bin/env python3
-"""Generate API documentation from code."""
-import os
-import importlib
-import inspect
-from pathlib import Path
-
-# Find project root
-PROJECT_ROOT = Path(__file__).parent.parent.absolute()
-SRC_DIR = PROJECT_ROOT / "src" / "hexcore"
-DOCS_DIR = PROJECT_ROOT / "docs" / "api"
-
-# Ensure docs directory exists
-DOCS_DIR.mkdir(parents=True, exist_ok=True)
-
-def generate_module_docs(module_name, output_path):
-    """Generate documentation for a module."""
-    module = importlib.import_module(module_name)
-
-    with open(output_path, "w") as f:
-        f.write(f"# {module_name}\n\n")
-
-        # Document module docstring
-        if module.__doc__:
-            f.write(f"{module.__doc__.strip()}\n\n")
-
-        # Find all classes and functions
-        for name, obj in inspect.getmembers(module):
-            # Skip private members
-            if name.startswith("_"):
-                continue
-
-            # Document classes
-            if inspect.isclass(obj) and obj.__module__ == module.__name__:
-                f.write(f"## {name}\n\n")
-
-                # Class docstring
-                if obj.__doc__:
-                    f.write(f"{obj.__doc__.strip()}\n\n")
-
-                f.write("```python\n")
-                f.write(inspect.getsource(obj))
-                f.write("```\n\n")
-
-            # Document functions
-            elif inspect.isfunction(obj) and obj.__module__ == module.__name__:
-                f.write(f"## {name}\n\n")
-
-                # Function docstring
-                if obj.__doc__:
-                    f.write(f"{obj.__doc__.strip()}\n\n")
-
-                f.write("```python\n")
-                f.write(inspect.getsource(obj))
-                f.write("```\n\n")
-
-def main():
-    """Generate all module documentation."""
-    modules = [
-        "hexcore.models.model_loader",
-        "hexcore.models.expert_adapters",
-        "hexcore.models.cross_expert",
-        "hexcore.models.transaction_classifier",
-        "hexcore.knowledge.hybrid_retriever",
-        "hexcore.knowledge.knowledge_graph",
-        "hexcore.inference.pipeline",
-    ]
-
-    for module_name in modules:
-        output_path = DOCS_DIR / f"{module_name.split('.')[-1]}.md"
-        generate_module_docs(module_name, output_path)
-        print(f"Generated docs for {module_name} at {output_path}")
-
-if __name__ == "__main__":
-    main()
 ````
 
-## 7. Implementation Strategy and Timeline
+## CPU Offloading
 
-Here's a recommended action plan for implementing these improvements:
+For systems with limited GPU memory but ample CPU RAM, enable CPU offloading:
 
-### Week 1: Consolidation and Structure
+```yaml
+memory_management:
+  enable_cpu_offloading: true
+  offload_expert_threshold: 0.2 # Offload experts with usage probability < 20%
+```
 
-1. Create a consolidated project structure
-2. Remove duplicate code and standardize interfaces
-3. Set up package structure and build system
+## MTG-Specific Optimizations
 
-### Week 2: Code Quality and Type Annotations
+### Knowledge Retrieval Budget
 
-1. Add comprehensive type annotations
-2. Implement error handling patterns
-3. Set up linting and code quality tools
-4. Fix identified issues
+Adjust the knowledge retrieval budget based on the complexity of MTG scenarios:
 
-### Week 3: Documentation and Testing
+| Scenario Complexity | Latency Budget (ms) | Token Budget | Use Case              |
+| ------------------- | ------------------- | ------------ | --------------------- |
+| Simple              | 100                 | 512          | Basic rules questions |
+| Medium              | 250                 | 1024         | Card interactions     |
+| Complex             | 500                 | 2048         | Multi-card combos     |
 
-1. Create documentation structure
-2. Set up automatic API documentation generation
-3. Improve test coverage
-4. Create user guides and developer documentation
+Configure in `knowledge_config.yaml`:
 
-## Success Criteria and Benefits
+```yaml
+retrieval:
+  complexity_detection: true # Auto-detect scenario complexity
+  default_latency_budget_ms: 250
+  max_tokens: 1024
+```
 
-By implementing these professionalization and hardening steps, you'll achieve:
+```
 
-1. **Better Code Quality**: Consistent style, reduced duplication, improved testing
-2. **Enhanced Maintainability**: Clear structure, comprehensive documentation
-3. **Easier Collaboration**: Well-defined interfaces and contribution guidelines
-4. **Improved Reliability**: Robust error handling, type safety, memory management
-5. **Professional Package**: Properly installable, versioned, and documented
+## Relationship to Development Roadmap
 
-These improvements will make Hexcore more resilient, easier to maintain, and more accessible to other developers, allowing you to focus on the innovative aspects of the MTG AI assistant rather than dealing with technical debt.
+The professionalization and hardening activities integrate directly with the three-phase development roadmap:
 
-Would you like me to provide additional details on any of these aspects or help you implement a specific part of this professionalization plan?
+1. **Phase 1 (Core Completion)**: Implement error handling, type annotations, and logging
+2. **Phase 2 (Feature Extensions)**: Refactor package structure, migrate tests, and enhance metadata
+3. **Phase 3 (Performance & Distribution)**: Create user interfaces, documentation, and performance guides
+
+This integrated approach ensures that code quality and professionalization efforts progress alongside feature development, avoiding technical debt and enabling more efficient collaboration.
+```

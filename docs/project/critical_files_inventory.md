@@ -1,6 +1,6 @@
 # Critical Files Inventory
 
-**Date**: March 10, 2025  
+**Date**: March 11, 2025  
 **Author**: Cline AI Assistant  
 **Project**: Hexcore - MTG AI Reasoning Assistant
 
@@ -18,11 +18,12 @@ This document provides an inventory of all critical files in the Hexcore project
 
 ## Enhanced Pipeline Components
 
-| File                                        | Purpose                                                                            | Criticality                        |
-| ------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------- |
-| `src/inference/enhanced_pipeline.py`        | Production-ready pipeline with error handling, monitoring, conversation management | HIGH - Production inference system |
-| `examples/enhanced_inference_demo.py`       | Demonstrates enhanced pipeline with multi-turn conversations and error handling    | MEDIUM - Demo and usage example    |
-| `tests/inference/test_enhanced_pipeline.py` | Tests for the enhanced inference pipeline                                          | HIGH - Validates enhanced pipeline |
+| File                                         | Purpose                                                                            | Criticality                         |
+| -------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------- |
+| `src/inference/enhanced_pipeline.py`         | Production-ready pipeline with error handling, monitoring, conversation management | HIGH - Production inference system  |
+| `examples/enhanced_inference_demo.py`        | Demonstrates enhanced pipeline with multi-turn conversations and error handling    | MEDIUM - Demo and usage example     |
+| `examples/memory_enhanced_inference_demo.py` | Demonstrates memory-optimized enhanced pipeline                                    | MEDIUM - Demo with memory profiling |
+| `tests/inference/test_enhanced_pipeline.py`  | Tests for the enhanced inference pipeline                                          | HIGH - Validates enhanced pipeline  |
 
 ## Memory Management & Optimization
 
@@ -35,11 +36,11 @@ This document provides an inventory of all critical files in the Hexcore project
 | `src/utils/kv_cache_manager.py`          | Manages KV cache with memory constraints                        | HIGH - Improves generation efficiency       |
 | `tests/utils/test_memory_profiler.py`    | Tests for advanced memory profiling                             | HIGH - Validates profiler functionality     |
 | `tests/utils/test_memory_monitoring.py`  | Tests for memory monitoring components                          | MEDIUM - Validates monitoring tools         |
-| `src/utils/test_balanced_mapping.py`     | Tests for device mapping functionality                          | MEDIUM - Validates mapping strategy         |
-| `src/utils/test_model_loading.py`        | Tests for model loading performance                             | MEDIUM - Validates loading process          |
+| `tests/utils/test_balanced_mapping.py`   | Tests for device mapping functionality                          | MEDIUM - Validates mapping strategy         |
+| `tests/utils/test_model_loading.py`      | Tests for model loading performance                             | MEDIUM - Validates loading process          |
 | `examples/memory_profiler_demo.py`       | Demonstrates memory profiler usage with examples                | MEDIUM - Illustrates profiler capabilities  |
 | `examples/memory_monitoring_pipeline.py` | Integration example of memory profiler with inference pipeline  | MEDIUM - Production integration example     |
-| `kv_cache_demo.py`                       | Demonstrates KV cache functionality                             | LOW - Example only                          |
+| `examples/kv_cache_demo.py`              | Demonstrates KV cache functionality                             | LOW - Example only                          |
 
 ## Expert Configuration
 
@@ -57,7 +58,10 @@ This document provides an inventory of all critical files in the Hexcore project
 | `src/training/adapter_dataset.py`         | Dataset class for expert-specific data loading and preprocessing   | HIGH - Training data processing pipeline      |
 | `src/training/adapter_trainer.py`         | LoRA adapter trainer with gradient accumulation and checkpointing  | HIGH - Core adapter fine-tuning functionality |
 | `src/training/train_all_experts.py`       | Script to train all expert adapters with orchestration logic       | MEDIUM - Training workflow automation         |
+| `src/training/train_minimal.py`           | Script for minimal training with reduced memory requirements       | HIGH - Memory-efficient training workflow     |
 | `src/training/expert_train_configs.py`    | Defines expert-specific training parameters and configurations     | HIGH - Training hyperparameter management     |
+| `run_train.sh`                            | Shell script to execute training process                           | MEDIUM - Training execution                   |
+| `docs/training_readme.md`                 | Documentation for training process                                 | MEDIUM - Training documentation               |
 | `data/training/reason_examples.jsonl`     | Training data for REASON expert with step-by-step rule analysis    | HIGH - Essential training data                |
 | `data/training/explain_examples.jsonl`    | Training data for EXPLAIN expert with clear concept articulation   | HIGH - Essential training data                |
 | `data/training/teach_examples.jsonl`      | Training data for TEACH expert with educational structures         | HIGH - Essential training data                |
@@ -99,22 +103,23 @@ This document provides an inventory of all critical files in the Hexcore project
 
 ## Tests
 
-| File                                              | Purpose                                   | Criticality                            |
-| ------------------------------------------------- | ----------------------------------------- | -------------------------------------- |
-| `tests/models/test_cross_expert.py`               | Tests cross-expert attention              | HIGH - Validates core component        |
-| `tests/models/test_expert_adapters.py`            | Tests expert adapter functionality        | HIGH - Validates expert management     |
-| `tests/models/test_transaction_classifier.py`     | Tests transaction classification          | HIGH - Validates routing               |
-| `tests/integration/test_memory_performance.py`    | Tests memory usage under load             | HIGH - Validates memory optimization   |
-| `tests/integration/test_multi_expert_pipeline.py` | Tests full pipeline with multiple experts | HIGH - Validates end-to-end flow       |
-| `tests/integration/test_stability.py`             | Tests system stability                    | HIGH - Validates robust operation      |
-| `tests/integration/test_kv_cache_optimization.py` | Tests KV cache manager                    | MEDIUM - Validates cache functionality |
-| `tests/integration/test_performance_metrics.py`   | Tests performance metrics collection      | MEDIUM - Validates monitoring          |
-| `tests/utils/test_memory_monitoring.py`           | Tests memory monitoring tools             | MEDIUM - Validates monitoring          |
-| `tests/utils/test_kv_cache_manager.py`            | Tests KV cache management                 | MEDIUM - Validates caching             |
-| `tests/data/test_mtg_data_loader.py`              | Tests MTG data loading                    | MEDIUM - Validates data access         |
-| `tests/test_harness.py`                           | Generic test harness                      | MEDIUM - Testing infrastructure        |
-| `tests/test_integration.py`                       | Base integration test functionality       | MEDIUM - Testing infrastructure        |
-| `pytest.ini`                                      | PyTest configuration                      | MEDIUM - Testing configuration         |
+| File                                              | Purpose                                   | Criticality                             |
+| ------------------------------------------------- | ----------------------------------------- | --------------------------------------- |
+| `tests/models/test_cross_expert.py`               | Tests cross-expert attention              | HIGH - Validates core component         |
+| `tests/models/test_expert_adapters.py`            | Tests expert adapter functionality        | HIGH - Validates expert management      |
+| `tests/models/test_transaction_classifier.py`     | Tests transaction classification          | HIGH - Validates routing                |
+| `tests/integration/test_memory_performance.py`    | Tests memory usage under load             | HIGH - Validates memory optimization    |
+| `tests/integration/test_multi_expert_pipeline.py` | Tests full pipeline with multiple experts | HIGH - Validates end-to-end flow        |
+| `tests/integration/test_stability.py`             | Tests system stability                    | HIGH - Validates robust operation       |
+| `tests/integration/test_kv_cache_optimization.py` | Tests KV cache manager                    | MEDIUM - Validates cache functionality  |
+| `tests/integration/test_performance_metrics.py`   | Tests performance metrics collection      | MEDIUM - Validates monitoring           |
+| `tests/utils/test_memory_monitoring.py`           | Tests memory monitoring tools             | MEDIUM - Validates monitoring           |
+| `tests/utils/test_kv_cache_manager.py`            | Tests KV cache management                 | MEDIUM - Validates caching              |
+| `tests/utils/test_memory_profiler.py`             | Tests advanced memory profiling           | HIGH - Validates profiler functionality |
+| `tests/data/test_mtg_data_loader.py`              | Tests MTG data loading                    | MEDIUM - Validates data access          |
+| `tests/test_harness.py`                           | Generic test harness                      | MEDIUM - Testing infrastructure         |
+| `tests/test_integration.py`                       | Base integration test functionality       | MEDIUM - Testing infrastructure         |
+| `pytest.ini`                                      | PyTest configuration                      | MEDIUM - Testing configuration          |
 
 ## Knowledge System Tests
 
@@ -128,6 +133,16 @@ This document provides an inventory of all critical files in the Hexcore project
 | `tests/knowledge/test_latency_tracker.py`   | Tests latency budget management            | MEDIUM - Validates performance      |
 | `tests/knowledge/test_retriever.py`         | Tests base retrieval functionality         | MEDIUM - Validates retrieval        |
 
+## Training Tests
+
+| File                                          | Purpose                                 | Criticality                        |
+| --------------------------------------------- | --------------------------------------- | ---------------------------------- |
+| `tests/training/test_adapter_dataset.py`      | Tests training dataset implementation   | HIGH - Validates data processing   |
+| `tests/training/test_adapter_trainer.py`      | Tests adapter trainer functionality     | HIGH - Validates core training     |
+| `tests/training/test_expert_train_configs.py` | Tests expert training configurations    | MEDIUM - Validates training params |
+| `tests/training/test_mixed_precision.py`      | Tests mixed precision training features | HIGH - Validates memory efficiency |
+| `tests/training/test_train_all_experts.py`    | Tests multi-expert training workflow    | MEDIUM - Validates training flow   |
+
 ## Documentation
 
 | File                                            | Purpose                                   | Criticality                |
@@ -136,6 +151,9 @@ This document provides an inventory of all critical files in the Hexcore project
 | `docs/architecture/technical_implementation.md` | Detailed technical implementation guide   | HIGH - Technical reference |
 | `docs/architecture/trainingplan.md`             | Training roadmap                          | MEDIUM - Training guidance |
 | `docs/project/consolidated_status_report.md`    | Current project status                    | HIGH - Project tracking    |
+| `docs/project/critical_files_inventory.md`      | Inventory of critical project files       | HIGH - Project structure   |
+| `docs/project/planned_work_packages.md`         | Planned enhancements and work packages    | HIGH - Development roadmap |
+| `docs/project/release_package.md`               | Release package structure and contents    | MEDIUM - Deployment guide  |
 | `docs/project/test_plan.md`                     | Testing strategy and plan                 | MEDIUM - Testing guidance  |
 | `docs/code_review_issues.md`                    | Issues identified during code review      | MEDIUM - Development guide |
 
@@ -155,11 +173,14 @@ This document provides an inventory of all critical files in the Hexcore project
 
 The following files have been reviewed and addressed:
 
-| Original File                   | Issue                                                 | Resolution                                                                    |
-| ------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `tests/test_mtg_data_loader.py` | Duplication with `tests/data/test_mtg_data_loader.py` | Removed (was only forwarding to the new location)                             |
-| `test_model_loading.py` (root)  | Duplicate of `src/utils/test_model_loading.py`        | Removed (superseded by the version in src/utils)                              |
-| `data/reader.py`                | Utility script outside proper package structure       | Moved to `src/tools/data_utils/json_inspector.py` with enhanced functionality |
+| Original File                        | Issue                                                 | Resolution                                                                    |
+| ------------------------------------ | ----------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `tests/test_mtg_data_loader.py`      | Duplication with `tests/data/test_mtg_data_loader.py` | Removed (was only forwarding to the new location)                             |
+| `test_model_loading.py` (root)       | Duplicate of `src/utils/test_model_loading.py`        | Removed (superseded by the version in src/utils)                              |
+| `data/reader.py`                     | Utility script outside proper package structure       | Moved to `src/tools/data_utils/json_inspector.py` with enhanced functionality |
+| `kv_cache_demo.py` (root)            | Duplication with `examples/kv_cache_demo.py`          | Removed root-level duplicate                                                  |
+| `src/utils/test_balanced_mapping.py` | Test file in src directory instead of tests directory | Moved to `tests/utils/test_balanced_mapping.py` for proper organization       |
+| `src/utils/test_model_loading.py`    | Test file in src directory instead of tests directory | Moved to `tests/utils/test_model_loading.py` for proper organization          |
 
 ## Implementation Completeness
 
@@ -186,22 +207,26 @@ Based on the code review, the following components have these implementation sta
 
    - Comprehensive hybrid retrieval system implemented
    - Context assembly and latency management complete
+   - Entity-based caching with invalidation complete
 
 5. **Adapter Training**: ~100% complete
 
    - Mixed precision training implemented
    - Dataset processing pipeline complete
    - Training configuration system complete
+   - Memory-efficient training workflow (train_minimal.py) implemented
    - Comprehensive testing across all expert types
 
-6. **Testing Infrastructure**: ~98% complete
+6. **Testing Infrastructure**: ~100% complete
 
    - Comprehensive tests implemented for all components
    - Advanced integration tests complete
    - Memory profiling tests with mocking for hardware independence
+   - All tests now passing consistently on target hardware
 
 7. **Pipeline Integration**: ~100% complete
    - Core functionality working
    - Enhanced pipeline with production features implemented
    - Error handling, circuit breakers and performance monitoring complete
    - Memory monitoring integration with production pipeline
+   - Comprehensive test coverage and demonstration examples

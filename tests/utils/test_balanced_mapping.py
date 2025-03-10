@@ -1,8 +1,5 @@
-#!/usr/bin/env python
-# Test script to validate the improved balanced device mapping
-
 import os
-import sys
+import pytest
 import torch
 import gc
 from typing import Dict, Optional
@@ -13,6 +10,12 @@ os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 # Import necessary modules
 from src.utils.device_mapping import DeviceMapper
 from src.utils.gpu_memory_tracker import track_memory, log_memory_usage
+
+
+@pytest.fixture
+def mapper():
+    """Fixture providing a DeviceMapper instance."""
+    return DeviceMapper(num_experts=8, num_layers=32)
 
 
 def test_device_mapping():
@@ -33,13 +36,17 @@ def test_device_mapping():
     # Create a device mapper with default Mixtral settings (8 experts, 32 layers)
     mapper = DeviceMapper(num_experts=8, num_layers=32)
 
-    # Test with different quantization settings
-    test_quantization_settings(mapper)
+    # Create device map
+    with track_memory("Device Mapping", log_to_console=True):
+        device_map = mapper.create_mixtral_device_map()
+
+    # Validate and analyze the generated map
+    analyze_device_map(device_map)
 
     print("\nTest complete!")
 
 
-def test_quantization_settings(mapper: DeviceMapper):
+def test_quantization_settings(mapper):
     """Test device mapping with different quantization settings."""
 
     quantization_settings = [None, 8, 4]
@@ -123,7 +130,3 @@ def analyze_device_map(device_map: Dict[str, str]):
                 print("  ✅ Expert distribution is well-balanced")
             else:
                 print("  ⚠️ Expert distribution is unbalanced")
-
-
-if __name__ == "__main__":
-    test_device_mapping()
