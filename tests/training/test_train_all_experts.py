@@ -51,7 +51,7 @@ class TestTrainingArguments:
         assert args.quantization == 4
         assert args.mixed_precision is False
         assert args.device_map == "auto"
-        assert args.validation_split == 0.1
+        assert args.validation_split == pytest.approx(0.1)
         assert args.resume is False
 
     def test_custom_arguments(self):
@@ -77,7 +77,7 @@ class TestTrainingArguments:
         assert args.quantization == 8
         assert args.mixed_precision is True
         assert args.device_map == "cuda:0"
-        assert args.validation_split == 0.2
+        assert args.validation_split == pytest.approx(0.2)
         assert args.resume is True
 
 
@@ -149,9 +149,9 @@ class TestTrainExpert:
         mock_trainer.save_adapter.assert_called_once()
 
         # Check result
-        assert result["loss"] == 0.5
-        assert result["learning_rate"] == 5e-5
-        assert result["epoch"] == 3.0
+        assert result["loss"] == pytest.approx(0.5)
+        assert result["learning_rate"] == pytest.approx(5e-5)
+        assert result["epoch"] == pytest.approx(3.0)
 
     @patch("src.training.train_all_experts.LoRAAdapterTrainer")
     @patch("src.training.train_all_experts.create_expert_dataset_from_jsonl")
@@ -235,9 +235,9 @@ class TestTrainExpert:
         mock_trainer.save_adapter.assert_called_once()
 
         # Check result
-        assert result["loss"] == 0.5
-        assert result["learning_rate"] == 5e-5
-        assert result["epoch"] == 3.0
+        assert result["loss"] == pytest.approx(0.5)
+        assert result["learning_rate"] == pytest.approx(5e-5)
+        assert result["epoch"] == pytest.approx(3.0)
 
     @patch("src.training.train_all_experts.LoRAAdapterTrainer")
     @patch("src.training.train_all_experts.create_expert_dataset_from_jsonl")
@@ -337,7 +337,7 @@ class TestMainFunction:
             assert call_args["quantization_bits"] == 4
             assert call_args["use_mixed_precision"] is True
             assert call_args["device_map"] == "auto"
-            assert call_args["validation_split"] == 0.1
+            assert call_args["validation_split"] == pytest.approx(0.1)
             assert call_args["resume_from_checkpoint"] is False
 
     def test_main_handles_training_errors(self):
