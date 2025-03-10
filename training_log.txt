@@ -1,0 +1,269 @@
+2025-03-10 19:48:38,612 - __main__ - INFO - Starting training with args: Namespace(base_model='mistralai/Mixtral-8x7B-v0.1', output_dir='adapters', experts=['REASON'], quantization=4, mixed_precision=True, device_map='auto', validation_split=0.1, resume=False)
+2025-03-10 19:48:38,612 - __main__ - INFO - CUDA available: True
+2025-03-10 19:48:38,638 - __main__ - INFO - CUDA device count: 2
+2025-03-10 19:48:38,644 - __main__ - INFO - CUDA current device: 0
+2025-03-10 19:48:38,644 - __main__ - INFO - CUDA device 0 name: NVIDIA GeForce RTX 4060 Ti
+2025-03-10 19:48:38,644 - __main__ - INFO - CUDA device 1 name: NVIDIA GeForce RTX 4060 Ti
+2025-03-10 19:48:38,644 - __main__ - INFO - === Training REASON Expert ===
+2025-03-10 19:48:39,184 - __main__ - INFO - Creating dataset from data/training/reason_examples.jsonl
+2025-03-10 19:48:39,184 - src.training.adapter_dataset - INFO - Loaded 9 raw data entries from 1 sources
+2025-03-10 19:48:39,184 - src.training.adapter_dataset - INFO - Processed 9 entries for REASON expert
+2025-03-10 19:48:39,184 - src.training.adapter_dataset - INFO - Split data into 8 training and 1 validation examples
+2025-03-10 19:48:39,184 - __main__ - INFO - Created datasets - Train: 8, Eval: 1
+2025-03-10 19:48:39,185 - src.training.adapter_trainer - INFO - Setting up LoRA adapter training for REASON
+2025-03-10 19:48:39,452 - src.training.adapter_trainer - INFO - Loaded tokenizer in 0.27s
+2025-03-10 19:48:39,452 - src.training.adapter_trainer - INFO - Loading quantized model with 4 bits...
+2025-03-10 19:50:13,331 - src.training.adapter_trainer - INFO - Loaded base model in 93.88s
+2025-03-10 19:50:13,331 - src.training.adapter_trainer - INFO - Preparing model for kbit training...
+2025-03-10 19:50:13,359 - src.training.adapter_trainer - INFO - Prepared model in 0.03s
+2025-03-10 19:50:13,359 - src.training.adapter_trainer - INFO - Applying LoRA config with rank 16...
+2025-03-10 19:50:13,479 - src.training.adapter_trainer - INFO - Applied LoRA in 0.12s
+2025-03-10 19:50:13,479 - src.training.adapter_trainer - INFO - Total setup time: 94.29s
+2025-03-10 19:50:13,482 - __main__ - INFO - Starting training...
+2025-03-10 19:50:13,482 - src.training.adapter_trainer - INFO - Starting training for REASON...
+2025-03-10 19:50:13,535 - __main__ - ERROR - Error training REASON expert: TensorBoardCallback requires tensorboard to be installed. Either update your PyTorch version or install tensorboardX.
+Traceback (most recent call last):
+  File "/home/john/hexcore/src/training/train_all_experts.py", line 258, in main
+    expert_metrics = train_expert(
+                     ^^^^^^^^^^^^^
+  File "/home/john/hexcore/src/training/train_all_experts.py", line 220, in train_expert
+    train_metrics = trainer.train(
+                    ^^^^^^^^^^^^^^
+  File "/home/john/hexcore/src/training/adapter_trainer.py", line 254, in train
+    self.trainer = Trainer(
+                   ^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/utils/deprecation.py", line 172, in wrapped_func
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/trainer.py", line 677, in __init__
+    self.callback_handler = CallbackHandler(
+                            ^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/trainer_callback.py", line 450, in __init__
+    self.add_callback(cb)
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/trainer_callback.py", line 467, in add_callback
+    cb = callback() if isinstance(callback, type) else callback
+         ^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/integrations/integration_utils.py", line 644, in __init__
+    raise RuntimeError(
+RuntimeError: TensorBoardCallback requires tensorboard to be installed. Either update your PyTorch version or install tensorboardX.
+2025-03-10 19:50:13,547 - __main__ - INFO - Training complete for all experts
+2025-03-10 19:51:00,487 - __main__ - INFO - Starting training with args: Namespace(base_model='mistralai/Mixtral-8x7B-v0.1', output_dir='adapters', experts=['REASON'], quantization=4, mixed_precision=True, device_map='balanced_low_0', validation_split=0.2, resume=False)
+2025-03-10 19:51:00,487 - __main__ - INFO - CUDA available: True
+2025-03-10 19:51:00,508 - __main__ - INFO - CUDA device count: 2
+2025-03-10 19:51:00,513 - __main__ - INFO - CUDA current device: 0
+2025-03-10 19:51:00,513 - __main__ - INFO - CUDA device 0 name: NVIDIA GeForce RTX 4060 Ti
+2025-03-10 19:51:00,513 - __main__ - INFO - CUDA device 1 name: NVIDIA GeForce RTX 4060 Ti
+2025-03-10 19:51:00,513 - __main__ - INFO - === Training REASON Expert ===
+2025-03-10 19:51:01,161 - __main__ - INFO - Creating dataset from data/training/reason_examples.jsonl
+2025-03-10 19:51:01,162 - src.training.adapter_dataset - INFO - Loaded 9 raw data entries from 1 sources
+2025-03-10 19:51:01,162 - src.training.adapter_dataset - INFO - Processed 9 entries for REASON expert
+2025-03-10 19:51:01,162 - src.training.adapter_dataset - INFO - Split data into 7 training and 2 validation examples
+2025-03-10 19:51:01,162 - __main__ - INFO - Created datasets - Train: 7, Eval: 2
+2025-03-10 19:51:01,162 - src.training.adapter_trainer - INFO - Setting up LoRA adapter training for REASON
+2025-03-10 19:51:02,383 - src.training.adapter_trainer - INFO - Loaded tokenizer in 1.22s
+2025-03-10 19:51:02,383 - src.training.adapter_trainer - INFO - Loading quantized model with 4 bits...
+2025-03-10 19:51:03,280 - __main__ - ERROR - Error training REASON expert: Some modules are dispatched on the CPU or the disk. Make sure you have enough GPU RAM to fit the quantized model. If you want to dispatch the model on the CPU or the disk while keeping these modules in 32-bit, you need to set `llm_int8_enable_fp32_cpu_offload=True` and pass a custom `device_map` to `from_pretrained`. Check https://huggingface.co/docs/transformers/main/en/main_classes/quantization#offload-between-cpu-and-gpu for more details. 
+Traceback (most recent call last):
+  File "/home/john/hexcore/src/training/train_all_experts.py", line 258, in main
+    expert_metrics = train_expert(
+                     ^^^^^^^^^^^^^
+  File "/home/john/hexcore/src/training/train_all_experts.py", line 202, in train_expert
+    trainer.setup(device_map=device_map)
+  File "/home/john/hexcore/src/training/adapter_trainer.py", line 149, in setup
+    self.model = AutoModelForCausalLM.from_pretrained(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/models/auto/auto_factory.py", line 564, in from_pretrained
+    return model_class.from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/modeling_utils.py", line 262, in _wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/modeling_utils.py", line 4262, in from_pretrained
+    hf_quantizer.validate_environment(device_map=device_map)
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/quantizers/quantizer_bnb_4bit.py", line 103, in validate_environment
+    raise ValueError(
+ValueError: Some modules are dispatched on the CPU or the disk. Make sure you have enough GPU RAM to fit the quantized model. If you want to dispatch the model on the CPU or the disk while keeping these modules in 32-bit, you need to set `llm_int8_enable_fp32_cpu_offload=True` and pass a custom `device_map` to `from_pretrained`. Check https://huggingface.co/docs/transformers/main/en/main_classes/quantization#offload-between-cpu-and-gpu for more details. 
+2025-03-10 19:51:03,288 - __main__ - INFO - Training complete for all experts
+2025-03-10 19:51:17,535 - __main__ - INFO - Starting training with args: Namespace(base_model='distilgpt2', output_dir='adapters', experts=['REASON'], quantization=16, mixed_precision=True, device_map='auto', validation_split=0.1, resume=False)
+2025-03-10 19:51:17,535 - __main__ - INFO - CUDA available: True
+2025-03-10 19:51:17,557 - __main__ - INFO - CUDA device count: 2
+2025-03-10 19:51:17,560 - __main__ - INFO - CUDA current device: 0
+2025-03-10 19:51:17,560 - __main__ - INFO - CUDA device 0 name: NVIDIA GeForce RTX 4060 Ti
+2025-03-10 19:51:17,560 - __main__ - INFO - CUDA device 1 name: NVIDIA GeForce RTX 4060 Ti
+2025-03-10 19:51:17,560 - __main__ - INFO - === Training REASON Expert ===
+2025-03-10 19:51:21,308 - __main__ - INFO - Creating dataset from data/training/reason_examples.jsonl
+2025-03-10 19:51:21,309 - src.training.adapter_dataset - INFO - Loaded 9 raw data entries from 1 sources
+2025-03-10 19:51:21,309 - src.training.adapter_dataset - INFO - Processed 9 entries for REASON expert
+2025-03-10 19:51:21,309 - src.training.adapter_dataset - INFO - Split data into 8 training and 1 validation examples
+2025-03-10 19:51:21,309 - __main__ - INFO - Created datasets - Train: 8, Eval: 1
+2025-03-10 19:51:21,309 - src.training.adapter_trainer - INFO - Setting up LoRA adapter training for REASON
+2025-03-10 19:51:21,853 - src.training.adapter_trainer - INFO - Loaded tokenizer in 0.54s
+2025-03-10 19:51:21,853 - src.training.adapter_trainer - INFO - Loading quantized model with 16 bits...
+2025-03-10 19:51:51,157 - src.training.adapter_trainer - INFO - Loaded base model in 29.30s
+2025-03-10 19:51:51,157 - src.training.adapter_trainer - INFO - Preparing model for kbit training...
+2025-03-10 19:51:51,165 - src.training.adapter_trainer - INFO - Prepared model in 0.01s
+2025-03-10 19:51:51,165 - src.training.adapter_trainer - INFO - Applying LoRA config with rank 16...
+2025-03-10 19:51:51,166 - __main__ - ERROR - Error training REASON expert: Target modules {'q_proj', 'o_proj', 'v_proj', 'up_proj', 'gate_proj'} not found in the base model. Please check the target modules and try again.
+Traceback (most recent call last):
+  File "/home/john/hexcore/src/training/train_all_experts.py", line 258, in main
+    expert_metrics = train_expert(
+                     ^^^^^^^^^^^^^
+  File "/home/john/hexcore/src/training/train_all_experts.py", line 202, in train_expert
+    trainer.setup(device_map=device_map)
+  File "/home/john/hexcore/src/training/adapter_trainer.py", line 168, in setup
+    self.model = get_peft_model(self.model, peft_config)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/peft/mapping.py", line 222, in get_peft_model
+    return MODEL_TYPE_TO_PEFT_MODEL_MAPPING[peft_config.task_type](
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/peft/peft_model.py", line 1684, in __init__
+    super().__init__(model, peft_config, adapter_name, **kwargs)
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/peft/peft_model.py", line 176, in __init__
+    self.base_model = cls(model, {adapter_name: peft_config}, adapter_name)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/peft/tuners/lora/model.py", line 141, in __init__
+    super().__init__(model, config, adapter_name, low_cpu_mem_usage=low_cpu_mem_usage)
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/peft/tuners/tuners_utils.py", line 184, in __init__
+    self.inject_adapter(self.model, adapter_name, low_cpu_mem_usage=low_cpu_mem_usage)
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/peft/tuners/tuners_utils.py", line 520, in inject_adapter
+    raise ValueError(error_msg)
+ValueError: Target modules {'q_proj', 'o_proj', 'v_proj', 'up_proj', 'gate_proj'} not found in the base model. Please check the target modules and try again.
+2025-03-10 19:51:51,176 - __main__ - INFO - Training complete for all experts
+2025-03-10 19:53:07,456 - __main__ - INFO - Starting training with args: Namespace(base_model='mistralai/Mixtral-8x7B-v0.1', output_dir='adapters', experts=['REASON'], quantization=4, mixed_precision=True, device_map='balanced', validation_split=0.1, resume=False)
+2025-03-10 19:53:07,456 - __main__ - INFO - CUDA available: True
+2025-03-10 19:53:07,482 - __main__ - INFO - CUDA device count: 2
+2025-03-10 19:53:07,488 - __main__ - INFO - CUDA current device: 0
+2025-03-10 19:53:07,488 - __main__ - INFO - CUDA device 0 name: NVIDIA GeForce RTX 4060 Ti
+2025-03-10 19:53:07,488 - __main__ - INFO - CUDA device 1 name: NVIDIA GeForce RTX 4060 Ti
+2025-03-10 19:53:07,488 - __main__ - INFO - === Training REASON Expert ===
+2025-03-10 19:53:08,003 - __main__ - INFO - Creating dataset from data/training/reason_examples.jsonl
+2025-03-10 19:53:08,003 - src.training.adapter_dataset - INFO - Loaded 9 raw data entries from 1 sources
+2025-03-10 19:53:08,003 - src.training.adapter_dataset - INFO - Processed 9 entries for REASON expert
+2025-03-10 19:53:08,003 - src.training.adapter_dataset - INFO - Split data into 8 training and 1 validation examples
+2025-03-10 19:53:08,003 - __main__ - INFO - Created datasets - Train: 8, Eval: 1
+2025-03-10 19:53:08,003 - src.training.adapter_trainer - INFO - Setting up LoRA adapter training for REASON
+2025-03-10 19:53:08,294 - src.training.adapter_trainer - INFO - Loaded tokenizer in 0.29s
+2025-03-10 19:53:08,294 - src.training.adapter_trainer - INFO - Loading quantized model with 4 bits...
+2025-03-10 19:54:45,750 - src.training.adapter_trainer - INFO - Loaded base model in 97.46s
+2025-03-10 19:54:45,751 - src.training.adapter_trainer - INFO - Preparing model for kbit training...
+2025-03-10 19:54:45,778 - src.training.adapter_trainer - INFO - Prepared model in 0.03s
+2025-03-10 19:54:45,778 - src.training.adapter_trainer - INFO - Applying LoRA config with rank 16...
+2025-03-10 19:54:45,904 - src.training.adapter_trainer - INFO - Applied LoRA in 0.13s
+2025-03-10 19:54:45,904 - src.training.adapter_trainer - INFO - Total setup time: 97.90s
+2025-03-10 19:54:45,906 - __main__ - INFO - Starting training...
+2025-03-10 19:54:45,906 - src.training.adapter_trainer - INFO - Starting training for REASON...
+2025-03-10 19:54:51,423 - __main__ - ERROR - Error training REASON expert: CUDA out of memory. Tried to allocate 64.00 MiB. GPU 1 has a total capacity of 15.60 GiB of which 15.06 MiB is free. Including non-PyTorch memory, this process has 15.58 GiB memory in use. Of the allocated memory 15.27 GiB is allocated by PyTorch, and 164.66 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+Traceback (most recent call last):
+  File "/home/john/hexcore/src/training/train_all_experts.py", line 258, in main
+    expert_metrics = train_expert(
+                     ^^^^^^^^^^^^^
+  File "/home/john/hexcore/src/training/train_all_experts.py", line 220, in train_expert
+    train_metrics = trainer.train(
+                    ^^^^^^^^^^^^^^
+  File "/home/john/hexcore/src/training/adapter_trainer.py", line 267, in train
+    train_result = self.trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/trainer.py", line 2241, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/trainer.py", line 2548, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/trainer.py", line 3698, in training_step
+    loss = self.compute_loss(model, inputs, num_items_in_batch=num_items_in_batch)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/hexcore/src/training/adapter_trainer.py", line 360, in compute_loss_with_mixed_precision
+    loss_and_outputs = original_compute_loss(
+                       ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/trainer.py", line 3759, in compute_loss
+    outputs = model(**inputs)
+              ^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/accelerate/utils/operations.py", line 819, in forward
+    return model_forward(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/accelerate/utils/operations.py", line 807, in __call__
+    return convert_to_fp32(self.model_forward(*args, **kwargs))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/amp/autocast_mode.py", line 44, in decorate_autocast
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/peft/peft_model.py", line 1719, in forward
+    return self.base_model(
+           ^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/peft/tuners/tuners_utils.py", line 197, in forward
+    return self.model.forward(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/accelerate/hooks.py", line 176, in new_forward
+    output = module._old_forward(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/utils/deprecation.py", line 172, in wrapped_func
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/models/mixtral/modeling_mixtral.py", line 1068, in forward
+    outputs = self.model(
+              ^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/models/mixtral/modeling_mixtral.py", line 682, in forward
+    layer_outputs = self._gradient_checkpointing_func(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/_compile.py", line 32, in inner
+    return disable_fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 632, in _fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 489, in checkpoint
+    return CheckpointFunction.apply(function, preserve, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/autograd/function.py", line 575, in apply
+    return super().apply(*args, **kwargs)  # type: ignore[misc]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 264, in forward
+    outputs = run_function(*args)
+              ^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/accelerate/hooks.py", line 176, in new_forward
+    output = module._old_forward(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/models/mixtral/modeling_mixtral.py", line 365, in forward
+    hidden_states, self_attn_weights = self.self_attn(
+                                       ^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/accelerate/hooks.py", line 176, in new_forward
+    output = module._old_forward(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/models/mixtral/modeling_mixtral.py", line 297, in forward
+    attn_output, attn_weights = attention_interface(
+                                ^^^^^^^^^^^^^^^^^^^^
+  File "/home/john/miniconda3/envs/hexcore/lib/python3.12/site-packages/transformers/integrations/sdpa_attention.py", line 53, in sdpa_attention_forward
+    attn_output = torch.nn.functional.scaled_dot_product_attention(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 64.00 MiB. GPU 1 has a total capacity of 15.60 GiB of which 15.06 MiB is free. Including non-PyTorch memory, this process has 15.58 GiB memory in use. Of the allocated memory 15.27 GiB is allocated by PyTorch, and 164.66 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+2025-03-10 19:54:51,475 - __main__ - INFO - Training complete for all experts

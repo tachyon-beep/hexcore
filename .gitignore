@@ -155,3 +155,7 @@ knowledge_graph/
 vector_store/
 data/ # Large Files
 data/cards.json
+
+# Training Logs
+*.log
+logs/
