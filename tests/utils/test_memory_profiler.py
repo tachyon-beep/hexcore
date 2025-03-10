@@ -49,9 +49,9 @@ class TestMemoryProfiler:
 
     def test_initialization(self, memory_profiler):
         """Test that memory profiler initializes correctly."""
-        assert memory_profiler.alert_threshold == 0.8
+        assert memory_profiler.alert_threshold == pytest.approx(0.8)
         assert memory_profiler.leak_detection_window == 5
-        assert memory_profiler.tracker.snapshot_interval == 0.1
+        assert memory_profiler.tracker.snapshot_interval == pytest.approx(0.1)
         assert not memory_profiler.monitoring
         assert len(memory_profiler.component_memory_map) == 0
         assert len(memory_profiler.alerts) == 0
