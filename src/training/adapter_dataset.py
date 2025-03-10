@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import List, Dict, Tuple, Any, Optional, Union, TypeVar, cast
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+from transformers.tokenization_utils_base import BatchEncoding
 
 logger = logging.getLogger(__name__)
 
@@ -358,21 +359,38 @@ class TokenizedDataset(Dataset):
         example = self.data[idx]
         prompt, completion = example["prompt"], example["completion"]
 
+        # Safely add EOS token if it exists and is a string
+        if isinstance(self.tokenizer.eos_token, str):
+            completion_with_eos = completion + self.tokenizer.eos_token
+        else:
+            # Fallback if eos_token is None or not a string
+            completion_with_eos = completion
+
         # Tokenize prompt and completion separately
         prompt_tokens = self.tokenizer(
             prompt, max_length=self.max_length, truncation=True, return_tensors="pt"
         )
 
+        # Use Any type to bypass the type checking for dictionary access
+        prompt_ids = cast(Any, prompt_tokens)["input_ids"]
+        if not isinstance(prompt_ids, torch.Tensor):
+            # Use Any again to bypass type checking for indexing
+            prompt_ids = torch.tensor(cast(Any, prompt_ids)[0]).unsqueeze(0)
+
+        # Do the same for completion tokens
         completion_tokens = self.tokenizer(
-            completion + self.tokenizer.eos_token,  # Add EOS to completion
+            completion_with_eos,
             max_length=self.max_length,
             truncation=True,
             return_tensors="pt",
         )
+        completion_ids = cast(Any, completion_tokens)["input_ids"]
+        if not isinstance(completion_ids, torch.Tensor):
+            completion_ids = torch.tensor(cast(Any, completion_ids)[0]).unsqueeze(0)
 
-        # Get lengths (accounting for tensor dimensions)
-        prompt_length = prompt_tokens["input_ids"].size(1)
-        completion_length = completion_tokens["input_ids"].size(1)
+        # Get lengths from tensors
+        prompt_length = prompt_ids.size(1)
+        completion_length = completion_ids.size(1)
 
         # Ensure we don't exceed max_length when combined
         total_length = prompt_length + completion_length
@@ -380,35 +398,41 @@ class TokenizedDataset(Dataset):
             # Prioritize completion by truncating prompt if needed
             prompt_length = max(1, self.max_length - completion_length)
 
-        # Construct the combined input_ids and attention_mask
-        input_ids = torch.cat(
-            [
-                prompt_tokens["input_ids"][0, :prompt_length],
-                completion_tokens["input_ids"][
-                    0, : min(completion_length, self.max_length - prompt_length)
-                ],
-            ],
-            dim=0,
-        )
+        # Extract the parts we need
+        prompt_part = prompt_ids[0, :prompt_length]
+        completion_part = completion_ids[
+            0, : min(completion_length, self.max_length - prompt_length)
+        ]
 
+        # Combine into a single sequence
+        input_ids = torch.cat([prompt_part, completion_part], dim=0)
+
+        # Create attention mask
         attention_mask = torch.ones_like(input_ids)
 
-        # Pad if needed
+        # Pad if needed to reach max_length
         if input_ids.size(0) < self.max_length:
             padding_length = self.max_length - input_ids.size(0)
+            pad_token_id = (
+                self.tokenizer.pad_token_id
+                if self.tokenizer.pad_token_id is not None
+                else 0
+            )
+
             input_ids = torch.cat(
                 [
                     input_ids,
-                    torch.ones(padding_length, dtype=torch.long)
-                    * self.tokenizer.pad_token_id,
+                    torch.ones(padding_length, dtype=torch.long) * pad_token_id,
                 ],
                 dim=0,
             )
             attention_mask = torch.cat(
-                [attention_mask, torch.zeros(padding_length, dtype=torch.long)], dim=0
+                [attention_mask, torch.zeros(padding_length, dtype=torch.long)],
+                dim=0,
             )
 
-        # Create labels: -100 for prompt tokens, actual ids for completion tokens
+        # Create labels: -100 for prompt tokens (they won't contribute to loss),
+        # actual ids for completion tokens
         labels = input_ids.clone()
         labels[:prompt_length] = -100
 

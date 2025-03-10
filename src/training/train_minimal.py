@@ -215,7 +215,15 @@ def train_expert(args):
     model.print_trainable_parameters()
 
     # 7. Setup training arguments
-    precision_type = "bf16" if args.bf16 else "fp16" if args.fp16 else "fp32"
+
+    # Determine precision type
+    if args.bf16:
+        precision_type = "bf16"
+    elif args.fp16:
+        precision_type = "fp16"
+    else:
+        precision_type = "fp32"
+
     logger.info(f"Setting up training with {precision_type} precision")
 
     training_args = TrainingArguments(

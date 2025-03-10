@@ -321,7 +321,7 @@ class TestMainFunction:
         ]
 
         # Execute
-        with patch("builtins.open", mock_open()) as mock_file:
+        with patch("builtins.open", mock_open()) as _:
             main()
 
         # Verify

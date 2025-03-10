@@ -37,13 +37,13 @@ def demo_basic_monitoring():
     # Allocate some memory
     print("Allocating tensors...")
     tensors = []
-    for i in range(3):
+    for _ in range(3):
         tensors.append(torch.ones((1000, 1000)))
         time.sleep(1)
 
     # Get memory summary
     summary = profiler.get_memory_usage_summary()
-    print(f"\nMemory usage summary:")
+    print("\nMemory usage summary:")
     print(f"  GPU utilization: {summary.get('gpu_utilization_percent', 0):.1f}%")
     print(f"  CPU utilization: {summary.get('cpu_utilization_percent', 0):.1f}%")
 
