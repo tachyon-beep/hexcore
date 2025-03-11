@@ -1,0 +1,721 @@
+{
+    "input": "Based on this game state, what would you do next?",
+    "output": "As Player1, the optimal play is to **cast Giant Growth targeting Llanowar Elves** in response to the Lightning Bolt on the stack. Here's the breakdown:\r\n\r\n1. **Mana Availability**: You have **{G}** from an untapped Forest. Llanowar Elves (summoning sick) cannot contribute mana yet.\r\n2. **Giant Growth Interaction**:\r\n   - Casting it for **{G}** gives Llanowar Elves **+3\/+3** (making it **4\/4** until end of turn).\r\n   - Lightning Bolt resolves afterward, dealing **3 damage** to the now 4\/4 Elves. The damage is less than its toughness, so it survives.\r\n3. **Strategic Impact**:\r\n   - Saving Llanowar Elves preserves your mana acceleration for future turns (it can tap next turn).\r\n   - Denies Player2\u2019s removal and maintains board presence.\r\n   - No other cards in hand are playable with your current mana (Grizzly Bears\/Rampant Growth require 2 mana, Naturalize has no targets).\r\n\r\n**Action**:  \r\n**Cast Giant Growth** targeting Llanowar Elves. Tap the untapped Forest for **{G}** to pay its cost. The stack resolves in reverse order, saving your creature.",
+    "reasoning": "Okay, let's see. I'm Player1 here, and it's my Main1 phase. The stack has a Lightning Bolt from Player2 targeting my Llanowar Elves. My Elves are currently at 1 toughness, so if the Bolt resolves, they'll take 3 damage and die. But wait, the game state mentions that there's a pending state-based action to destroy the Elves because of the Bolt's damage. Hmm, so maybe the Bolt hasn't resolved yet? Because the stack is still there.\r\n\r\nWait, the stack shows the Lightning Bolt is not resolved yet. So I have a chance to respond. Let me check my options. My hand has Forest, Giant Growth, Grizzly Bears, Rampant Growth, and Naturalize. I have 1 green mana available from the untapped Forest and the Llanowar Elves, but the Elves have summoning sickness, so they can't tap for mana yet. Right, because summoning sickness means they can't use their tap abilities unless they have haste. So my only available mana is from the untapped Forest, which gives me {G}.\r\n\r\nSo with {G} available, what can I do? Giant Growth costs {G} to cast. If I cast it on my Llanowar Elves, they would get +3\/+3 until end of turn. That would make them 4\/4. Then when the Lightning Bolt resolves, it deals 3 damage, but the Elves would have 4 toughness. So they would survive with 1 damage marked. Wait, because damage reduces toughness? No, wait, damage is marked on the creature, and if the damage is equal to or greater than the toughness, the creature dies. So if the Elves are 4\/4, taking 3 damage, they have 3 damage marked. Since their toughness is 4, they wouldn't die. So casting Giant Growth would save them.\r\n\r\nBut I need to check if I can cast Giant Growth. It's an instant, so I can cast it in response to Lightning Bolt. Yes, that's possible. So the stack would resolve in reverse order: Giant Growth would resolve first, making the Elves 4\/4, then Lightning Bolt deals 3 damage. The Elves survive with 3 damage, but their toughness is 4, so they live.\r\n\r\nAlternatively, if I don't respond, the Bolt resolves, dealing 3 damage to the 1\/1 Elves, which would die. Then I lose that creature. So the best move is to cast Giant Growth here.\r\n\r\nBut wait, do I have the mana? The mana pool shows that Player1 has {G} available from the untapped Forest. The other Forest is tapped. The Llanowar Elves can't tap because of summoning sickness. So yes, I can pay {G} for Giant Growth. That would use up my available mana, leaving me with nothing else. But saving the Elves is probably worth it because they can provide mana next turn once summoning sickness wears off.\r\n\r\nWhat else is in my hand? Grizzly Bears is a 2\/2 for 1G, but I can't cast that now because I only have 1G available if I save the Elves. Wait, no\u2014if I use the {G} for Giant Growth, then I can't cast Grizzly Bears this turn unless I have another mana source. But my only untapped land is the Forest, which is tapped after using its mana for Giant Growth. Wait, no\u2014the Forest is already untapped. Wait, the battlefield for Player1 has two Forests: one untapped (timestamp 1) and one tapped (timestamp 2). So the first Forest is untapped. So if I tap it for {G} to cast Giant Growth, then it's tapped. Then the Llanowar Elves are summoning sick, so they can't be tapped. So after that, I can't cast anything else that costs mana. But Giant Growth is the key play here.\r\n\r\nAlternatively, maybe I can let the Elves die and play another creature. But the Elves are a mana dork, which is valuable. Saving them would let me have two mana sources next turn: the untapped Forest and the Elves. That would allow me to cast Rampant Growth or Grizzly Bears next turn with more flexibility. So saving them is better.\r\n\r\nAnother option: Naturalize is in my hand, but there's no artifact or enchantment on the battlefield to target. Player2's permanents are Mountains and Goblin Guide. So Naturalize is useless here. Rampant Growth is a sorcery, so I can't cast it now. Grizzly Bears is a creature, which I could cast if I have the mana. But with only {G} available, I can't cast it (costs 1G). So no, unless I have another source. But the Elves can't tap, so no. So the only play is Giant Growth.\r\n\r\nTherefore, the correct move is to cast Giant Growth targeting Llanowar Elves in response to Lightning Bolt. This would save the Elves, allowing me to keep my mana dork for future turns. That seems like the best line here.",
+    "knowledge": {
+        "board": {
+            {
+                "game_info": {
+                    "format": "Standard",
+                    "turn_number": 3,
+                    "active_player": "Player1",
+                    "priority_player": "Player1",
+                    "phase": "Main1",
+                    "step": "None",
+                    "turn_structure": {
+                        "untap": {
+                            "completed": true
+                        },
+                        "upkeep": {
+                            "completed": true
+                        },
+                        "draw": {
+                            "completed": true
+                        },
+                        "main1": {
+                            "completed": false,
+                            "current": true
+                        },
+                        "combat": {
+                            "completed": false,
+                            "begin_combat": {
+                                "completed": false
+                            },
+                            "declare_attackers": {
+                                "completed": false
+                            },
+                            "declare_blockers": {
+                                "completed": false
+                            },
+                            "combat_damage": {
+                                "completed": false
+                            },
+                            "end_combat": {
+                                "completed": false
+                            }
+                        },
+                        "main2": {
+                            "completed": false
+                        },
+                        "end": {
+                            "completed": false,
+                            "end_step": {
+                                "completed": false
+                            },
+                            "cleanup": {
+                                "completed": false
+                            }
+                        }
+                    },
+                    "priority": {
+                        "current_player": "Player1",
+                        "players_passed": [],
+                        "full_round_passed": false
+                    },
+                    "stack": [
+                        {
+                            "stack_id": 1,
+                            "timestamp": 1678956421,
+                            "object_type": "spell",
+                            "name": "Lightning Bolt",
+                            "controller": "Player2",
+                            "targets": [
+                                {
+                                    "name": "Llanowar Elves",
+                                    "controller": "Player1"
+                                }
+                            ],
+                            "mana_cost": "{R}",
+                            "colors": [
+                                "R"
+                            ],
+                            "color_identity": [
+                                "R"
+                            ],
+                            "type_line": "Instant",
+                            "rules_text": "Lightning Bolt deals 3 damage to any target.",
+                            "resolved": false,
+                            "position_on_stack": 1,
+                            "triggered_by": "None"
+                        }
+                    ]
+                },
+                "players": [
+                    {
+                        "name": "Player1",
+                        "life_total": 20,
+                        "poison_counters": 0,
+                        "mana_pool": {
+                            "W": 0,
+                            "U": 0,
+                            "B": 0,
+                            "R": 0,
+                            "G": 1,
+                            "C": 0,
+                            "sources": [
+                                {
+                                    "source": "Llanowar Elves",
+                                    "amount": "{G}",
+                                    "restrictions": []
+                                }
+                            ]
+                        },
+                        "lands_played_this_turn": 1,
+                        "counters": {
+                            "experience": 0,
+                            "energy": 0,
+                            "loyalty": 0,
+                            "other": {}
+                        },
+                        "zones": {
+                            "hand": {
+                                "size": 5,
+                                "cards": [
+                                    {
+                                        "name": "Forest",
+                                        "mana_cost": "",
+                                        "mana_value": 0,
+                                        "colors": [],
+                                        "color_identity": [
+                                            "G"
+                                        ],
+                                        "type_line": "Land — Forest",
+                                        "rules_text": "({T}: Add {G}.)",
+                                        "abilities": [
+                                            {
+                                                "type": "Mana",
+                                                "cost": "{T}",
+                                                "effect": "Add {G}",
+                                                "usable": true,
+                                                "source_rule": "Printed"
+                                            }
+                                        ],
+                                        "visible_to_opponent": false
+                                    },
+                                    {
+                                        "name": "Giant Growth",
+                                        "mana_cost": "{G}",
+                                        "mana_value": 1,
+                                        "colors": [
+                                            "G"
+                                        ],
+                                        "color_identity": [
+                                            "G"
+                                        ],
+                                        "type_line": "Instant",
+                                        "rules_text": "Target creature gets +3/+3 until end of turn.",
+                                        "visible_to_opponent": false
+                                    },
+                                    {
+                                        "name": "Grizzly Bears",
+                                        "mana_cost": "{1}{G}",
+                                        "mana_value": 2,
+                                        "colors": [
+                                            "G"
+                                        ],
+                                        "color_identity": [
+                                            "G"
+                                        ],
+                                        "type_line": "Creature — Bear",
+                                        "power": 2,
+                                        "toughness": 2,
+                                        "rules_text": "",
+                                        "abilities": [],
+                                        "visible_to_opponent": false
+                                    },
+                                    {
+                                        "name": "Rampant Growth",
+                                        "mana_cost": "{1}{G}",
+                                        "mana_value": 2,
+                                        "colors": [
+                                            "G"
+                                        ],
+                                        "color_identity": [
+                                            "G"
+                                        ],
+                                        "type_line": "Sorcery",
+                                        "rules_text": "Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+                                        "visible_to_opponent": false
+                                    },
+                                    {
+                                        "name": "Naturalize",
+                                        "mana_cost": "{1}{G}",
+                                        "mana_value": 2,
+                                        "colors": [
+                                            "G"
+                                        ],
+                                        "color_identity": [
+                                            "G"
+                                        ],
+                                        "type_line": "Instant",
+                                        "rules_text": "Destroy target artifact or enchantment.",
+                                        "visible_to_opponent": false
+                                    }
+                                ]
+                            },
+                            "battlefield": {
+                                "permanents": [
+                                    {
+                                        "name": "Forest",
+                                        "type_line": "Land — Forest",
+                                        "rules_text": "({T}: Add {G}.)",
+                                        "status": {
+                                            "tapped": false,
+                                            "flipped": false,
+                                            "face_down": false,
+                                            "phased_out": false,
+                                            "summoning_sick": false,
+                                            "attacking": false,
+                                            "blocking": [],
+                                            "exerted": false,
+                                            "transformed": false,
+                                            "monstrous": false,
+                                            "renowned": false,
+                                            "adapted": false
+                                        },
+                                        "abilities": [
+                                            {
+                                                "type": "Mana",
+                                                "cost": "{T}",
+                                                "effect": "Add {G}",
+                                                "usable": true,
+                                                "source_rule": "Printed"
+                                            }
+                                        ],
+                                        "controller": "Player1",
+                                        "owner": "Player1",
+                                        "timestamp": 1,
+                                        "attachments": [],
+                                        "counters": {
+                                            "+1/+1": 0,
+                                            "-1/-1": 0,
+                                            "charge": 0,
+                                            "loyalty": 0,
+                                            "other": {}
+                                        }
+                                    },
+                                    {
+                                        "name": "Forest",
+                                        "type_line": "Land — Forest",
+                                        "rules_text": "({T}: Add {G}.)",
+                                        "status": {
+                                            "tapped": true,
+                                            "flipped": false,
+                                            "face_down": false,
+                                            "phased_out": false,
+                                            "summoning_sick": false,
+                                            "attacking": false,
+                                            "blocking": [],
+                                            "exerted": false,
+                                            "transformed": false,
+                                            "monstrous": false,
+                                            "renowned": false,
+                                            "adapted": false
+                                        },
+                                        "abilities": [
+                                            {
+                                                "type": "Mana",
+                                                "cost": "{T}",
+                                                "effect": "Add {G}",
+                                                "usable": false,
+                                                "source_rule": "Printed"
+                                            }
+                                        ],
+                                        "controller": "Player1",
+                                        "owner": "Player1",
+                                        "timestamp": 2,
+                                        "attachments": [],
+                                        "counters": {
+                                            "+1/+1": 0,
+                                            "-1/-1": 0,
+                                            "charge": 0,
+                                            "loyalty": 0,
+                                            "other": {}
+                                        }
+                                    },
+                                    {
+                                        "name": "Llanowar Elves",
+                                        "mana_cost": "{G}",
+                                        "mana_value": 1,
+                                        "colors": [
+                                            "G"
+                                        ],
+                                        "color_identity": [
+                                            "G"
+                                        ],
+                                        "type_line": "Creature — Elf Druid",
+                                        "power": 1,
+                                        "toughness": 1,
+                                        "rules_text": "{T}: Add {G}.",
+                                        "status": {
+                                            "tapped": false,
+                                            "flipped": false,
+                                            "face_down": false,
+                                            "phased_out": false,
+                                            "summoning_sick": true,
+                                            "attacking": false,
+                                            "blocking": [],
+                                            "exerted": false,
+                                            "transformed": false,
+                                            "monstrous": false,
+                                            "renowned": false,
+                                            "adapted": false
+                                        },
+                                        "abilities": [
+                                            {
+                                                "type": "Mana",
+                                                "cost": "{T}",
+                                                "effect": "Add {G}",
+                                                "usable": false,
+                                                "source_rule": "Printed"
+                                            }
+                                        ],
+                                        "damage_marked": 0,
+                                        "controller": "Player1",
+                                        "owner": "Player1",
+                                        "timestamp": 3,
+                                        "attachments": [],
+                                        "counters": {
+                                            "+1/+1": 0,
+                                            "-1/-1": 0,
+                                            "charge": 0,
+                                            "loyalty": 0,
+                                            "other": {}
+                                        }
+                                    }
+                                ]
+                            },
+                            "graveyard": {
+                                "size": 1,
+                                "cards": [
+                                    {
+                                        "name": "Birds of Paradise",
+                                        "mana_cost": "{G}",
+                                        "mana_value": 1,
+                                        "colors": [
+                                            "G"
+                                        ],
+                                        "color_identity": [
+                                            "G"
+                                        ],
+                                        "type_line": "Creature — Bird",
+                                        "power": 0,
+                                        "toughness": 1,
+                                        "rules_text": "{T}: Add one mana of any color.",
+                                        "abilities": [
+                                            {
+                                                "type": "Mana",
+                                                "cost": "{T}",
+                                                "effect": "Add one mana of any color",
+                                                "usable": false,
+                                                "source_rule": "Printed"
+                                            }
+                                        ],
+                                        "position": 1,
+                                        "owner": "Player1"
+                                    }
+                                ]
+                            },
+                            "exile": {
+                                "size": 0,
+                                "cards": [],
+                                "exile_groups": {}
+                            },
+                            "library": {
+                                "size": 52,
+                                "top_revealed": false,
+                                "known_cards": [],
+                                "known_position": {}
+                            },
+                            "command": {
+                                "size": 0,
+                                "cards": []
+                            },
+                            "sideboard": {
+                                "size": 15,
+                                "cards": []
+                            }
+                        },
+                        "just_drew": false
+                    },
+                    {
+                        "name": "Player2",
+                        "life_total": 17,
+                        "poison_counters": 0,
+                        "mana_pool": {
+                            "W": 0,
+                            "U": 0,
+                            "B": 0,
+                            "R": 1,
+                            "G": 0,
+                            "C": 0,
+                            "sources": [
+                                {
+                                    "source": "Mountain",
+                                    "amount": "{R}",
+                                    "restrictions": []
+                                }
+                            ]
+                        },
+                        "lands_played_this_turn": 0,
+                        "counters": {
+                            "experience": 0,
+                            "energy": 0,
+                            "loyalty": 0,
+                            "other": {}
+                        },
+                        "zones": {
+                            "hand": {
+                                "size": 6,
+                                "known_cards": [],
+                                "revealed_cards": [
+                                    {
+                                        "name": "Mountain",
+                                        "revealed_by": "Goblin Guide trigger",
+                                        "revealed_to": [
+                                            "Player1"
+                                        ]
+                                    }
+                                ],
+                                "inferred_cards": []
+                            },
+                            "battlefield": {
+                                "permanents": [
+                                    {
+                                        "name": "Mountain",
+                                        "type_line": "Land — Mountain",
+                                        "rules_text": "({T}: Add {R}.)",
+                                        "status": {
+                                            "tapped": true,
+                                            "flipped": false,
+                                            "face_down": false,
+                                            "phased_out": false,
+                                            "summoning_sick": false,
+                                            "attacking": false,
+                                            "blocking": [],
+                                            "exerted": false,
+                                            "transformed": false,
+                                            "monstrous": false,
+                                            "renowned": false,
+                                            "adapted": false
+                                        },
+                                        "abilities": [
+                                            {
+                                                "type": "Mana",
+                                                "cost": "{T}",
+                                                "effect": "Add {R}",
+                                                "usable": false,
+                                                "source_rule": "Printed"
+                                            }
+                                        ],
+                                        "controller": "Player2",
+                                        "owner": "Player2",
+                                        "timestamp": 4,
+                                        "attachments": [],
+                                        "counters": {
+                                            "+1/+1": 0,
+                                            "-1/-1": 0,
+                                            "charge": 0,
+                                            "loyalty": 0,
+                                            "other": {}
+                                        }
+                                    },
+                                    {
+                                        "name": "Mountain",
+                                        "type_line": "Land — Mountain",
+                                        "rules_text": "({T}: Add {R}.)",
+                                        "status": {
+                                            "tapped": false,
+                                            "flipped": false,
+                                            "face_down": false,
+                                            "phased_out": false,
+                                            "summoning_sick": false,
+                                            "attacking": false,
+                                            "blocking": [],
+                                            "exerted": false,
+                                            "transformed": false,
+                                            "monstrous": false,
+                                            "renowned": false,
+                                            "adapted": false
+                                        },
+                                        "abilities": [
+                                            {
+                                                "type": "Mana",
+                                                "cost": "{T}",
+                                                "effect": "Add {R}",
+                                                "usable": true,
+                                                "source_rule": "Printed"
+                                            }
+                                        ],
+                                        "controller": "Player2",
+                                        "owner": "Player2",
+                                        "timestamp": 5,
+                                        "attachments": [],
+                                        "counters": {
+                                            "+1/+1": 0,
+                                            "-1/-1": 0,
+                                            "charge": 0,
+                                            "loyalty": 0,
+                                            "other": {}
+                                        }
+                                    },
+                                    {
+                                        "name": "Goblin Guide",
+                                        "mana_cost": "{R}",
+                                        "mana_value": 1,
+                                        "colors": [
+                                            "R"
+                                        ],
+                                        "color_identity": [
+                                            "R"
+                                        ],
+                                        "type_line": "Creature — Goblin Scout",
+                                        "power": 2,
+                                        "toughness": 2,
+                                        "rules_text": "Haste\nWhenever Goblin Guide attacks, defending player reveals the top card of their library. If it's a land card, that player puts that card into their hand.",
+                                        "status": {
+                                            "tapped": true,
+                                            "flipped": false,
+                                            "face_down": false,
+                                            "phased_out": false,
+                                            "summoning_sick": false,
+                                            "attacking": false,
+                                            "blocking": [],
+                                            "exerted": false,
+                                            "transformed": false,
+                                            "monstrous": false,
+                                            "renowned": false,
+                                            "adapted": false
+                                        },
+                                        "abilities": [
+                                            {
+                                                "type": "Static",
+                                                "effect": "Haste",
+                                                "usable": true,
+                                                "source_rule": "Printed"
+                                            },
+                                            {
+                                                "type": "Triggered",
+                                                "trigger_condition": "Whenever Goblin Guide attacks",
+                                                "effect": "Defending player reveals the top card of their library. If it's a land card, that player puts that card into their hand.",
+                                                "usable": true,
+                                                "source_rule": "Printed"
+                                            }
+                                        ],
+                                        "damage_marked": 0,
+                                        "controller": "Player2",
+                                        "owner": "Player2",
+                                        "timestamp": 6,
+                                        "attachments": [],
+                                        "counters": {
+                                            "+1/+1": 0,
+                                            "-1/-1": 0,
+                                            "charge": 0,
+                                            "loyalty": 0,
+                                            "other": {}
+                                        }
+                                    }
+                                ]
+                            },
+                            "graveyard": {
+                                "size": 2,
+                                "cards": [
+                                    {
+                                        "name": "Shock",
+                                        "mana_cost": "{R}",
+                                        "mana_value": 1,
+                                        "colors": [
+                                            "R"
+                                        ],
+                                        "color_identity": [
+                                            "R"
+                                        ],
+                                        "type_line": "Instant",
+                                        "rules_text": "Shock deals 2 damage to any target.",
+                                        "position": 1,
+                                        "owner": "Player2"
+                                    },
+                                    {
+                                        "name": "Monastery Swiftspear",
+                                        "mana_cost": "{R}",
+                                        "mana_value": 1,
+                                        "colors": [
+                                            "R"
+                                        ],
+                                        "color_identity": [
+                                            "R"
+                                        ],
+                                        "type_line": "Creature — Human Monk",
+                                        "power": 1,
+                                        "toughness": 2,
+                                        "rules_text": "Haste\nProwess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)",
+                                        "abilities": [
+                                            {
+                                                "type": "Static",
+                                                "effect": "Haste",
+                                                "usable": false,
+                                                "source_rule": "Printed"
+                                            },
+                                            {
+                                                "type": "Triggered",
+                                                "trigger_condition": "Whenever you cast a noncreature spell",
+                                                "effect": "This creature gets +1/+1 until end of turn",
+                                                "usable": false,
+                                                "source_rule": "Printed"
+                                            }
+                                        ],
+                                        "position": 2,
+                                        "owner": "Player2"
+                                    }
+                                ]
+                            },
+                            "exile": {
+                                "size": 0,
+                                "cards": [],
+                                "exile_groups": {}
+                            },
+                            "library": {
+                                "size": 52,
+                                "top_revealed": false,
+                                "known_cards": [],
+                                "known_position": {}
+                            },
+                            "command": {
+                                "size": 0,
+                                "cards": []
+                            },
+                            "sideboard": {
+                                "size": 15,
+                                "cards": []
+                            }
+                        },
+                        "just_drew": false
+                    }
+                ],
+                "special_game_states": {
+                    "day_night_cycle": "NotActive",
+                    "monarch": "None",
+                    "initiative": "None",
+                    "city_blessing": [],
+                    "dungeon_progress": {},
+                    "emblems": [],
+                    "state_based_actions": {
+                        "checked": true,
+                        "pending_actions": [
+                            {
+                                "type": "DestroyDueToLethalDamage",
+                                "affected_permanent": {
+                                    "name": "Llanowar Elves",
+                                    "controller": "Player1"
+                                },
+                                "reason": "Will have 3 damage marked from Lightning Bolt"
+                            }
+                        ]
+                    },
+                    "continuous_effects": [
+                        {
+                            "source": "Game Rule",
+                            "description": "Summoning sickness applies to creatures that came under a player's control this turn.",
+                            "duration": "Indefinite",
+                            "layer": "None",
+                            "timestamp": 0
+                        }
+                    ],
+                    "replacement_effects": [],
+                    "turn_based_actions_pending": []
+                },
+                "perspective": "Player1",
+                "game_context": {
+                    "turn_history": [
+                        {
+                            "turn_number": 1,
+                            "active_player": "Player1",
+                            "summary": "Player1 played Forest, cast Birds of Paradise"
+                        },
+                        {
+                            "turn_number": 2,
+                            "active_player": "Player2",
+                            "summary": "Player2 played Mountain, cast Goblin Guide and attacked for 2, then cast Monastery Swiftspear"
+                        },
+                        {
+                            "turn_number": 3,
+                            "active_player": "Player1",
+                            "summary": "Player1 played Forest, cast Llanowar Elves, Player2 cast Shock targeting Birds of Paradise"
+                        }
+                    ],
+                    "strategic_assessment": {
+                        "board_advantage": "Player2",
+                        "card_advantage": "Equal",
+                        "tempo_advantage": "Player2",
+                        "critical_decision_points": [
+                            "Player1 must decide how to respond to Lightning Bolt targeting their Llanowar Elves"
+                        ]
+                    }
+                },
+                "game_metadata": {
+                    "date_played": "2025-03-11",
+                    "format": "Standard",
+                    "event_type": "Tournament",
+                    "match_id": "abc123",
+                    "round_number": 1,
+                    "game_number": 2,
+                    "decks": {
+                        "Player1": "Mono-Green Stompy",
+                        "Player2": "Mono-Red Aggro"
+            
+                    }           
+                }
+            }
+        }
+    }
+}
