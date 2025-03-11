@@ -1,7 +1,3 @@
-Based on all the code you've shared, implementing Chain of Thought (CoT) reasoning in your MTG AI Assistant system is quite straightforward, as you already have the necessary classes and infrastructure in place.
-
-Here's how to implement and use CoT reasoning in your system:
-
 ## Implementation Steps
 
 1. **You already have the core components:**
