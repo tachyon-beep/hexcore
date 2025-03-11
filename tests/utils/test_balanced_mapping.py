@@ -114,7 +114,7 @@ def analyze_device_map(device_map: Dict[str, str]):
         experts_gpu1 = device_counts["cuda:1"].get("experts", 0)
 
         if total_experts > 0:
-            print(f"\nExpert Distribution:")
+            print("\nExpert Distribution:")
             print(
                 f"  GPU 0: {experts_gpu0} experts ({experts_gpu0/total_experts*100:.1f}%)"
             )

@@ -120,7 +120,7 @@ def analyze_device_map(device_map):
     # Calculate balance ratio
     total_experts = gpu0_experts + gpu1_experts
     if total_experts > 0:
-        print(f"\nExpert Distribution:")
+        print("\nExpert Distribution:")
         gpu0_ratio = gpu0_experts / total_experts * 100
         gpu1_ratio = gpu1_experts / total_experts * 100
         print(f"  GPU 0: {gpu0_experts} experts ({gpu0_ratio:.1f}%)")
